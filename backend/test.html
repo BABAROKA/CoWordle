@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust Wordle WebSocket Client</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .message-area {
+            min-height: 400px;
+            max-height: 60vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex justify-center items-start min-h-screen">
+
+    <div id="app" class="w-full max-w-2xl bg-white shadow-xl rounded-xl p-6 md:p-8 space-y-6">
+        <h1 class="text-3xl font-bold text-gray-800 border-b pb-2">Wordle Socket Tester</h1>
+        
+        <div id="connection-status" class="flex items-center space-x-2 text-sm font-medium p-3 rounded-lg">
+            <span id="status-dot" class="w-3 h-3 rounded-full bg-red-500"></span>
+            <span id="status-text" class="text-red-700">Connecting... (Check console for errors)</span>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-lg shadow-inner">
+            <p class="text-sm font-semibold text-gray-700">Your Player ID:</p>
+            <code id="player-id" class="block text-xs mt-1 text-gray-500 truncate">Waiting for connection...</code>
+        </div>
+        
+        <!-- Command Input Form -->
+        <div class="space-y-4">
+            <h2 class="text-xl font-semibold text-gray-700">Send Command (JSON)</h2>
+            <textarea 
+                id="json-input" 
+                rows="4" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 font-mono text-sm resize-none" 
+                placeholder='{"action": "Guess", "word": "RUSTY"}'
+            ></textarea>
+            
+            <button 
+                id="send-button" 
+                class="w-full bg-indigo-600 text-white py-3 px-4 rounded-xl font-bold hover:bg-indigo-700 transition duration-150 shadow-md shadow-indigo-300 disabled:opacity-50"
+                disabled
+            >
+                Send JSON Command
+            </button>
+        </div>
+
+        <!-- Message Log -->
+        <div class="space-y-2">
+            <h2 class="text-xl font-semibold text-gray-700">Server Messages</h2>
+            <div id="messages" class="message-area bg-gray-100 p-4 rounded-lg border border-gray-200 space-y-2">
+                <!-- Messages will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "ws://localhost:5905/ws";
+        let ws = null;
+
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const messagesDiv = document.getElementById('messages');
+        const sendButton = document.getElementById('send-button');
+        const jsonInput = document.getElementById('json-input');
+        const playerIdCode = document.getElementById('player-id');
+
+        // Function to update connection status in the UI
+        function updateStatus(connected) {
+            if (connected) {
+                statusDot.classList.remove('bg-red-500');
+                statusDot.classList.add('bg-green-500');
+                statusText.classList.remove('text-red-700');
+                statusText.classList.add('text-green-700');
+                statusText.textContent = 'Connected';
+                sendButton.disabled = false;
+            } else {
+                statusDot.classList.remove('bg-green-500');
+                statusDot.classList.add('bg-red-500');
+                statusText.classList.remove('text-green-700');
+                statusText.classList.add('text-red-700');
+                statusText.textContent = 'Disconnected. Retrying...';
+                sendButton.disabled = true;
+                playerIdCode.textContent = 'Waiting for connection...';
+            }
+        }
+
+        // Function to log messages to the UI
+        function logMessage(text, type = 'server') {
+            const time = new Date().toLocaleTimeString();
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('text-sm', 'p-2', 'rounded-lg', 'font-mono');
+            
+            if (type === 'server') {
+                try {
+                    const data = JSON.parse(text);
+                    messageElement.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-200');
+                    // Format JSON nicely
+                    messageElement.innerHTML = `
+                        <span class="text-xs text-gray-500">${time} [SERVER]</span>
+                        <pre class="whitespace-pre-wrap mt-1 text-sm">${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } catch (e) {
+                    // Not JSON (e.g., initial welcome/error string)
+                    messageElement.classList.add('bg-blue-100', 'text-blue-800', 'border', 'border-blue-200');
+                    messageElement.innerHTML = `<span class="text-xs text-gray-500">${time} [SERVER]</span><p class="mt-1">${text}</p>`;
+                }
+            } else if (type === 'client') {
+                messageElement.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
+                messageElement.innerHTML = `<span class="text-xs text-gray-500">${time} [CLIENT]</span><p class="mt-1">${text}</p>`;
+            } else {
+                messageElement.classList.add('bg-red-100', 'text-red-800');
+                messageElement.innerHTML = `<span class="text-xs text-gray-500">${time} [ERROR]</span><p class="mt-1">${text}</p>`;
+            }
+
+            messagesDiv.appendChild(messageElement);
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // --- WebSocket Logic ---
+
+        function connect() {
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(API_URL);
+
+            ws.onopen = () => {
+                updateStatus(true);
+                logMessage("WebSocket connection established.", 'status');
+                // Note: The player ID is created on the server, we need to wait for the first message
+                // to potentially get it if the server sends it. For now, it remains "Waiting...".
+            };
+
+            ws.onmessage = (event) => {
+                const text = event.data;
+                logMessage(text);
+
+                // Simple attempt to detect the player ID from the welcome message
+                // This assumes the first message is a welcome and contains the ID, e.g., "Welcome User-XXXX"
+                if (playerIdCode.textContent === 'Waiting for connection...' && text.includes('User-')) {
+                    const match = text.match(/User-[\w-]+/);
+                    if (match) {
+                        playerIdCode.textContent = match[0];
+                    }
+                }
+            };
+
+            ws.onerror = (error) => {
+                logMessage(`Connection Error: ${error.message}`, 'error');
+                updateStatus(false);
+            };
+
+            ws.onclose = (event) => {
+                logMessage(`Connection Closed. Code: ${event.code}. Reason: ${event.reason}`, 'status');
+                updateStatus(false);
+                // Attempt to reconnect after a delay
+                setTimeout(connect, 3000); 
+            };
+        }
+
+        // --- Event Listener for Sending Data ---
+
+        sendButton.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const input = jsonInput.value.trim();
+                
+                try {
+                    // Validate JSON before sending
+                    JSON.parse(input); 
+
+                    ws.send(input);
+                    logMessage(input, 'client');
+                    // jsonInput.value = ''; // Keep input for quick retries/tweaks
+                } catch (e) {
+                    logMessage(`Invalid JSON format: ${e.message}`, 'error');
+                }
+            } else {
+                logMessage('Cannot send: WebSocket is not open.', 'error');
+            }
+        });
+
+        // Initialize connection when the window loads
+        window.onload = connect;
+
+    </script>
+</body>
+</html>
