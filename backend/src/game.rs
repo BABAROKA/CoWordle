@@ -5,10 +5,12 @@ use tokio::sync::mpsc;
 
 pub type GameId = String;
 pub type PlayerId = String;
+pub type ServerMessageSender = mpsc::Sender<ServerMessage>;
+
 const MAX_GUESSES: usize = 6;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "action", rename_all = "camelCase")]
+#[serde(tag = "action", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
     CreatedStatus {
         game_id: GameId,
@@ -53,9 +55,10 @@ pub struct GuessResult {
 
 impl GuessResult {
     fn new(word: String) -> Self {
+        let word_length = word.len();
         GuessResult {
             word: word,
-            status: vec![GameColor::Gray; 5],
+            status: vec![GameColor::Gray; word_length],
         }
     }
 }
@@ -92,7 +95,7 @@ impl BoardState {
 #[derive(Debug)]
 struct Game {
     solution_word: String,
-    player_senders: HashMap<PlayerId, mpsc::Sender<ServerMessage>>,
+    player_senders: HashMap<PlayerId, ServerMessageSender>,
     board_state: BoardState,
 }
 
@@ -111,7 +114,7 @@ impl Game {
         }
     }
 
-    fn add_sender(&mut self, player_id: PlayerId, reply_sender: mpsc::Sender<ServerMessage>) {
+    fn add_sender(&mut self, player_id: PlayerId, reply_sender: ServerMessageSender) {
         if !self.player_senders.contains_key(&player_id) {
             self.player_senders.insert(player_id, reply_sender);
         }
@@ -136,7 +139,7 @@ impl Game {
             if let Some(pos) = solution_vec.iter().position(|&c| c == guess_vec[j]) {
                 guess_result.status[j] = GameColor::Yellow;
                 guess_vec[j] = '0';
-                solution_vec.remove(pos);
+                solution_vec[pos] = '0';
             }
         }
         guess_result
@@ -146,17 +149,18 @@ impl Game {
 pub enum GameCommand {
     Create {
         player_id: PlayerId,
-        reply_sender: mpsc::Sender<ServerMessage>,
+        reply_sender: ServerMessageSender,
     },
     Join {
         game_id: GameId,
         player_id: PlayerId,
-        reply_sender: mpsc::Sender<ServerMessage>,
+        reply_sender: ServerMessageSender,
     },
     Guess {
         game_id: GameId,
         player_id: PlayerId,
         word: String,
+        reply_sender: ServerMessageSender,
     },
     Disconnect {
         game_id: GameId,
@@ -197,138 +201,180 @@ impl GameCoordinator {
                     player_id,
                     reply_sender,
                 } => {
-                    if let Some(game) = self.games.get_mut(&game_id) {
-                        game.add_sender(player_id.clone(), reply_sender.clone());
-                        game.board_state.add_player(player_id);
-
-                        let reply_message = ServerMessage::JoinStatus {
-                            status: "success".to_string(),
-                            board_state: game.board_state.clone(),
+                    if let Err(err) = self
+                        .handle_join(player_id, game_id, reply_sender.clone())
+                        .await
+                    {
+                        let error_message = ServerMessage::Error {
+                            message: err.clone(),
                         };
-                        if reply_sender.send(reply_message).await.is_err() {
-                            println!("Failed to send Join Message");
-                        };
-                    } else {
-                        let error_message = ServerMessage::Error { message: "Game not found".to_string() };
                         if reply_sender.send(error_message).await.is_err() {
-                            println!("Failed to send Join Message no game");
-                        };
+                            println!("ERROR: {err}");
+                        }
                     }
                 }
                 GameCommand::Create {
                     player_id,
                     reply_sender,
                 } => {
-                    let solution_word = dict::random_solution();
-                    let game_id = dict::random_game_id();
+                    let game_id = self.handle_create(player_id, reply_sender.clone()).await;
 
-                    let mut new_game = Game::new(solution_word, player_id.clone());
-                    new_game.add_sender(player_id.clone(), reply_sender.clone());
-                    new_game.board_state.add_player(player_id);
-
-                    self.add_game(game_id.clone(), new_game);
-
-                    let reply_message = ServerMessage::CreatedStatus {
+                    let created_message = ServerMessage::CreatedStatus {
                         game_id: game_id,
-                        status: "success".to_string(),
+                        status: "Success".to_string(),
                     };
-                    if reply_sender.send(reply_message).await.is_err() {
-                        println!("Failed to send Create Message")
+                    if reply_sender.send(created_message).await.is_err() {
+                        println!("ERROR: Sending game id");
                     }
                 }
                 GameCommand::Guess {
                     game_id,
                     player_id,
                     word,
+                    reply_sender,
                 } => {
-                    if let Some(game) = self.games.get_mut(&game_id) {
-                        if game.board_state.current_turn != player_id {
-                            let error_message = ServerMessage::Error {
-                                message: "Not your turn".to_string(),
-                            };
-                            if let Some(sender) = game.player_senders.get(&player_id) {
-                                if sender.send(error_message).await.is_err() {
-                                    println!("Failed to send game not found in guess");
-                                }
-                            }
-                            return;
-                        }
-                        if !dict::valid_guess(&word) {
-                            let error_message = ServerMessage::Error {
-                                message: "Not valid guess".to_string(),
-                            };
-                            if let Some(sender) = game.player_senders.get(&player_id) {
-                                if sender.send(error_message).await.is_err() {
-                                    println!("Failed to send game not found in guess valid word");
-                                }
-                            }
-                            return;
-                        }
-                        let guess = game.check_guess(word);
-                        game.board_state.guesses.push(guess.clone());
-
-                        if guess.status.iter().all(|x| *x == GameColor::Green) {
-                            game.board_state.game_status = GameStatus::Won;
-                        } else if game.board_state.guesses.len() >= MAX_GUESSES {
-                            game.board_state.game_status = GameStatus::Lost;
-                        }
-
-                        let guess_chars: Vec<char> = guess.word.to_uppercase().chars().collect();
-                        for i in 0..guess_chars.len() {
-                            let char_key = guess_chars[i];
-                            let guess_color = guess.status[i].clone();
-
-                            let current_color = game.board_state.keyboard_status.get(&char_key);
-
-                            let new_color = match (current_color, &guess_color) {
-                                (Some(GameColor::Green), _) => None,
-                                (Some(GameColor::Yellow), GameColor::Green) => {
-                                    Some(GameColor::Green)
-                                }
-                                (Some(GameColor::Yellow), _) => None,
-                                _ => Some(guess_color),
-                            };
-
-                            if let Some(color) = new_color {
-                                game.board_state.keyboard_status.insert(char_key, color);
-                            }
-                        }
-                        game.board_state.next_turn();
-
-                        let game_update = ServerMessage::GameUpdate {
-                            board_state: game.board_state.clone(),
+                    if let Err(err) = self.handle_guess(player_id, game_id, word).await {
+                        let error_message = ServerMessage::Error {
+                            message: err.to_string(),
                         };
-
-                        for (_, sender) in &game.player_senders {
-                            if sender.send(game_update.clone()).await.is_err() {
-                                println!("Failed to send board state not found in guess");
-                            }
+                        if reply_sender.send(error_message).await.is_err() {
+                            println!("ERROR: {err}");
                         }
                     }
                 }
                 GameCommand::Disconnect { game_id, player_id } => {
-                    if let Some(game) = self.games.get_mut(&game_id) {
-                        game.player_senders.remove(&player_id);
-                        game.board_state.players.retain(|id| id != &player_id);
-
-                        if game.board_state.current_turn == player_id {
-                            game.board_state.next_turn();
-                        }
-
-                        if game.board_state.players.is_empty() {
-                            self.games.remove(&game_id);
-                            return;
-                        }
-
-                        let game_update = ServerMessage::GameUpdate {
-                            board_state: game.board_state.clone(),
-                        };
-
-                        for (_, sender) in &game.player_senders {
-                            sender.send(game_update.clone()).await;
-                        }
-                    }
+                    if let Err(err) = self.handle_disconnect(player_id, game_id).await {
+                        println!("ERROR: {err}");
+                    };
                 }
+            }
+        }
+    }
+
+    async fn handle_join(
+        &mut self,
+        player_id: PlayerId,
+        game_id: GameId,
+        sender: ServerMessageSender,
+    ) -> Result<(), String> {
+        let game = self
+            .games
+            .get_mut(&game_id)
+            .ok_or_else(|| "Game not found".to_string())?;
+        game.add_sender(player_id.clone(), sender.clone());
+        game.board_state.add_player(player_id);
+        let join_message = ServerMessage::JoinStatus {
+            status: "success".to_string(),
+            board_state: game.board_state.clone(),
+        };
+        sender.send(join_message).await.map_err(|err| err.to_string())?;
+        Ok(())
+    }
+
+    async fn handle_create(&mut self, player_id: PlayerId, sender: ServerMessageSender) -> GameId {
+        let solution_word = dict::random_solution();
+        let game_id = dict::random_game_id();
+
+        let mut new_game = Game::new(solution_word, player_id.clone());
+        new_game.add_sender(player_id.clone(), sender);
+        new_game.board_state.add_player(player_id);
+
+        self.add_game(game_id.clone(), new_game);
+
+        game_id
+    }
+
+    async fn handle_guess(
+        &mut self,
+        player_id: PlayerId,
+        game_id: GameId,
+        word: String,
+    ) -> Result<(), String> {
+        let game = self
+            .games
+            .get_mut(&game_id)
+            .ok_or_else(|| "Game not found".to_string())?;
+
+        if game.board_state.current_turn != player_id {
+            return Err("Not your turn to guess".to_string());
+        }
+        if !dict::valid_guess(&word) {
+            return Err("Not a valid word".to_string());
+        }
+        let guess = game.check_guess(word);
+        game.board_state.guesses.push(guess.clone());
+
+        let win = guess.status.iter().all(|x| *x == GameColor::Green);
+        if win {
+            game.board_state.game_status = GameStatus::Won;
+        } else if game.board_state.guesses.len() >= MAX_GUESSES {
+            game.board_state.game_status = GameStatus::Lost;
+        }
+        GameCoordinator::update_keyboard_status(game, &guess);
+        game.board_state.next_turn();
+
+        let game_update = ServerMessage::GameUpdate {
+            board_state: game.board_state.clone(),
+        };
+        GameCoordinator::broadcast_message(game, game_update).await;
+
+        Ok(())
+    }
+
+    async fn handle_disconnect(
+        &mut self,
+        player_id: PlayerId,
+        game_id: GameId,
+    ) -> Result<(), String> {
+        let game = self
+            .games
+            .get_mut(&game_id)
+            .ok_or_else(|| "Game not found".to_string())?;
+
+        game.player_senders.remove(&player_id);
+        game.board_state.players.retain(|id| id != &player_id);
+
+        if game.board_state.current_turn == player_id {
+            game.board_state.next_turn();
+        }
+
+        if game.board_state.players.is_empty() {
+            self.games.remove(&game_id);
+            return Ok(());
+        }
+
+        let game_update = ServerMessage::GameUpdate {
+            board_state: game.board_state.clone(),
+        };
+
+        GameCoordinator::broadcast_message(game, game_update).await;
+        Ok(())
+    }
+
+    fn update_keyboard_status(game: &mut Game, guess: &GuessResult) {
+        let guess_chars: Vec<char> = guess.word.to_uppercase().chars().collect();
+        for i in 0..guess_chars.len() {
+            let char_key = guess_chars[i];
+            let guess_color = guess.status[i].clone();
+
+            let current_color = game.board_state.keyboard_status.get(&char_key);
+
+            let new_color = match (current_color, &guess_color) {
+                (Some(GameColor::Green), _) => None,
+                (Some(GameColor::Yellow), GameColor::Green) => Some(GameColor::Green),
+                (Some(GameColor::Yellow), _) => None,
+                _ => Some(guess_color),
+            };
+            if let Some(color) = new_color {
+                game.board_state.keyboard_status.insert(char_key, color);
+            }
+        }
+    }
+
+    async fn broadcast_message(game: &mut Game, message: ServerMessage) {
+        for (_, sender) in &game.player_senders {
+            if sender.send(message.clone()).await.is_err() {
+                println!("ERROR: Unable to broadcast message to players");
             }
         }
     }

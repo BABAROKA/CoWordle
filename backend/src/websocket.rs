@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::game::{GameCommand, GameId, PlayerId, ServerMessage};
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "action", rename_all = "camelCase")]
+#[serde(tag = "action", rename_all_fields = "camelCase")]
 enum ClientMessage {
     CreateGame {
         player_id: PlayerId,
@@ -41,10 +41,14 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
     match serde_json::to_string(&welcome_message) {
         Ok(message) => {
             if tw.send(Message::Text(message.into())).await.is_err() {
+                println!("ERROR: Unable to send welcome message");
                 return;
             }
         }
-        Err(_) => {}
+        Err(err) => {
+            println!("ERROR: Failed to serialize welcome message: {:?}", err);
+            return;
+        }
     }
 
     loop {
@@ -52,11 +56,15 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
             Some(msg) = player_rx.recv() => {
                 match serde_json::to_string(&msg) {
                     Ok(message) => {
-                        if tw.send(Message::Text(message.into())).await.is_err() {
+                        if let Err(err) = tw.send(Message::Text(message.into())).await {
+                            println!("ERROR: Unable to send message to client {err}");
                             break;
                         }
                     },
-                    Err(_) => {}
+                    Err(err) => {
+                        println!("ERROR: Failed to serialize message: {:?}", err);
+                        break;
+                    }
                 }
             }
 
@@ -73,18 +81,22 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                                         GameCommand::Join { game_id: game_id, player_id: player_id, reply_sender: player_tx.clone() }
                                     },
                                     ClientMessage::GuessWord {player_id, game_id, word} => {
-                                        GameCommand::Guess { game_id: game_id, player_id: player_id, word: word }
+                                        GameCommand::Guess { game_id: game_id, player_id: player_id, word: word, reply_sender: player_tx.clone() }
                                     },
                                     ClientMessage::DisconnectPlayer {player_id, game_id} => {
                                         GameCommand::Disconnect { game_id: game_id, player_id: player_id }
                                     }
                                 };
 
-                                if let Err(_) = tx.send(command).await {
+                                if let Err(err) = tx.send(command).await {
+                                    println!("ERROR: Unable to send message to game coordinator {err}");
                                     break;
                                 }
                             }
-                            Err(_) => {}
+                            Err(err) => {
+                                println!("ERROR: Failed to serialize message: {:?}", err);
+                                break;
+                            }
                         }
                     },
                     _ => {},
