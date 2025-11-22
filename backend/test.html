@@ -196,13 +196,13 @@
 
         function handleServerMessage(data) {
             // 1. Handle Initial Welcome
-            if (data.action === "Welcome") {
+            if (data.action === "welcome") {
                 myPlayerId = data.playerId;
                 document.getElementById('display-pid').textContent = myPlayerId;
             }
 
             // 2. Handle Game Creation
-            if (data.action === "CreatedStatus") {
+            if (data.action === "createdStatus") {
                 activeGameId = data.gameId;
                 updateGameIdDisplay();
             }
@@ -227,10 +227,10 @@
                 (state.currentTurn === myPlayerId) ? "YOU" : state.currentTurn;
             
             let statusText = "Unknown";
-            if(state.gameStatus === "InProgress") statusText = "In Progress";
-            else if(state.gameStatus === "Won") statusText = "WON! 🎉";
-            else if(state.gameStatus === "Lost") statusText = "Game Over 💀";
-            else if(state.gameStatus === "Aborted") statusText = "Aborted";
+            if(state.gameStatus === "inProgress") statusText = "In Progress";
+            else if(state.gameStatus === "won") statusText = "WON! 🎉";
+            else if(state.gameStatus === "lost") statusText = "Game Over 💀";
+            else if(state.gameStatus === "aborted") statusText = "Aborted";
             
             document.getElementById('display-status').textContent = statusText;
 
@@ -247,8 +247,8 @@
 
                     // Map Rust enum colors to CSS classes
                     const colorEnum = guess.status[idx];
-                    if (colorEnum === "Green") box.classList.add('green');
-                    else if (colorEnum === "Yellow") box.classList.add('yellow');
+                    if (colorEnum === "green") box.classList.add('green');
+                    else if (colorEnum === "yellow") box.classList.add('yellow');
                     else box.classList.add('gray');
 
                     row.appendChild(box);

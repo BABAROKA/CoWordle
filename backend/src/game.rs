@@ -11,7 +11,7 @@ pub type PlayerSender = mpsc::Sender<ServerMessage>;
 const MAX_GUESSES: usize = 6;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "action", rename_all_fields = "camelCase")]
+#[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
     CreatedStatus {
         game_id: GameId,
@@ -36,6 +36,7 @@ pub enum ServerMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum GameStatus {
     InProgress,
     Won,
@@ -44,6 +45,7 @@ pub enum GameStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum GameColor {
     Gray,
     Yellow,
@@ -51,6 +53,7 @@ pub enum GameColor {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct GuessResult {
     word: String,
     status: Vec<GameColor>,
@@ -67,6 +70,7 @@ impl GuessResult {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BoardState {
     guesses: Vec<GuessResult>,
     current_turn: PlayerId,
@@ -249,9 +253,7 @@ impl GameCoordinator {
                     None => return,
                 };
                 if let Err(err) = self.handle_join(player_id, game_id, sender.clone()).await {
-                    let error_message = ServerMessage::Error {
-                        message: err.clone(),
-                    };
+                    let error_message = ServerMessage::Error { message: err.clone() };
                     if let Err(err) = sender.send(error_message).await {
                         error!("{err}");
                     }
@@ -263,9 +265,7 @@ impl GameCoordinator {
                     None => return,
                 };
                 if let Err(err) = self.handle_new(game_id).await {
-                    let error_message = ServerMessage::Error {
-                        message: err.clone(),
-                    };
+                    let error_message = ServerMessage::Error { message: err.clone() };
                     if let Err(err) = sender.send(error_message).await {
                         error!("{err}");
                     }
@@ -309,12 +309,7 @@ impl GameCoordinator {
         }
     }
 
-    async fn handle_join(
-        &mut self,
-        player_id: PlayerId,
-        game_id: GameId,
-        sender: PlayerSender,
-    ) -> Result<(), String> {
+    async fn handle_join(&mut self, player_id: PlayerId, game_id: GameId, sender: PlayerSender) -> Result<(), String> {
         let game = self
             .games
             .get_mut(&game_id)
@@ -325,13 +320,12 @@ impl GameCoordinator {
 
         game.add_sender(player_id.clone(), sender.clone());
         game.board_state.add_player(player_id);
+
         let join_message = ServerMessage::JoinStatus {
             board_state: game.board_state.clone(),
         };
-        sender
-            .send(join_message)
-            .await
-            .map_err(|err| err.to_string())
+        GameCoordinator::broadcast_message(game, join_message).await;
+        Ok(())
     }
 
     async fn handle_create(&mut self, player_id: PlayerId, sender: PlayerSender) -> GameId {
@@ -359,12 +353,7 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn handle_guess(
-        &mut self,
-        player_id: PlayerId,
-        game_id: GameId,
-        word: String,
-    ) -> Result<(), String> {
+    async fn handle_guess(&mut self, player_id: PlayerId, game_id: GameId, word: String) -> Result<(), String> {
         let game = self
             .games
             .get_mut(&game_id)
@@ -405,11 +394,7 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn handle_disconnect(
-        &mut self,
-        player_id: PlayerId,
-        game_id: GameId,
-    ) -> Result<(), String> {
+    async fn handle_disconnect(&mut self, player_id: PlayerId, game_id: GameId) -> Result<(), String> {
         let game = self
             .games
             .get_mut(&game_id)
