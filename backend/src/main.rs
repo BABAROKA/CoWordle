@@ -1,6 +1,6 @@
-mod websocket;
-mod game;
 mod dict;
+mod game;
+mod websocket;
 
 use axum::{
     self, Router,
@@ -8,22 +8,39 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
-use tokio::{net::TcpListener, sync::mpsc};
-use websocket::handle_socket;
 use game::GameCoordinator;
+use tokio::{net::TcpListener, sync::mpsc};
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{self, filter::EnvFilter};
+use websocket::handle_socket;
 
 use crate::game::GameCommand;
 
 #[tokio::main]
 async fn main() {
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive(tracing::Level::INFO.into()),
+        )
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    tracing::info!("Starting Game Server");
     let (tx, game_coordinator) = GameCoordinator::new();
 
     tokio::spawn(game_coordinator.run());
 
-    let app = Router::new().route("/ws", get(ws_handler)).with_state(tx);
+    let app = Router::new()
+        .route("/ws", get(ws_handler))
+        .with_state(tx)
+        .layer(TraceLayer::new_for_http());
 
     let listener = TcpListener::bind("0.0.0.0:5905").await.unwrap();
+    tracing::info!("Listening to: {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
+    tracing::info!("Game Server Shut Down");
 }
 
 async fn ws_handler(

@@ -31,7 +31,7 @@ pub static VALID_SOLUTION_WORDS: Lazy<Vec<String>> = Lazy::new(|| {
 });
 
 pub fn valid_guess(guess: &str) -> bool {
-    VALID_GUESS_WORDS.contains(&guess.to_uppercase())
+    VALID_GUESS_WORDS.contains(&guess.to_uppercase()) || VALID_SOLUTION_WORDS.contains(&guess.to_uppercase())
 }
 
 pub fn random_solution() -> String {
