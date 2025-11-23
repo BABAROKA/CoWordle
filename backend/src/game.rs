@@ -23,7 +23,7 @@ pub enum ServerMessage {
         board_state: BoardState,
         solution: Option<String>,
     },
-    Newgame {
+    NewGame {
         board_state: BoardState,
     },
     Welcome {
@@ -176,25 +176,24 @@ impl Game {
 }
 
 pub enum GameCommand {
-    RegisterPlayer {
-        player_id: PlayerId,
-        reply_sender: PlayerSender,
-    },
     Create {
         player_id: PlayerId,
+        reply_sender: PlayerSender,
     },
     Join {
         game_id: GameId,
         player_id: PlayerId,
+        reply_sender: PlayerSender,
     },
     New {
         game_id: GameId,
-        player_id: PlayerId,
+        reply_sender: PlayerSender,
     },
     Guess {
         game_id: GameId,
         player_id: PlayerId,
         word: String,
+        reply_sender: PlayerSender,
     },
     Disconnect {
         game_id: GameId,
@@ -205,7 +204,7 @@ pub enum GameCommand {
 #[derive(Debug)]
 pub struct GameCoordinator {
     games: HashMap<GameId, Game>,
-    player_senders: HashMap<PlayerId, PlayerSender>,
+    player_games: HashMap<PlayerId, GameId>,
     rx: mpsc::Receiver<GameCommand>,
 }
 
@@ -217,7 +216,7 @@ impl GameCoordinator {
         let (tx, rx) = mpsc::channel(32);
         let coordinator = GameCoordinator {
             games: HashMap::new(),
-            player_senders: HashMap::new(),
+            player_games: HashMap::new(),
             rx,
         };
         (tx, coordinator)
@@ -225,10 +224,6 @@ impl GameCoordinator {
 
     fn add_game(&mut self, game_id: GameId, game: Game) {
         self.games.insert(game_id, game);
-    }
-
-    fn get_sender(&self, player_id: &PlayerId) -> Option<PlayerSender> {
-        self.player_senders.get(player_id).cloned()
     }
 
     #[instrument(skip(self))]
@@ -241,45 +236,34 @@ impl GameCoordinator {
 
     async fn process_command(&mut self, command: GameCommand) {
         match command {
-            GameCommand::RegisterPlayer {
+            GameCommand::Join {
+                game_id,
                 player_id,
                 reply_sender,
             } => {
-                self.player_senders.insert(player_id, reply_sender);
-            }
-            GameCommand::Join { game_id, player_id } => {
-                let sender = match self.get_sender(&player_id) {
-                    Some(s) => s,
-                    None => return,
-                };
-                if let Err(err) = self.handle_join(player_id, game_id, sender.clone()).await {
+                if let Err(err) = self.handle_join(player_id, game_id, reply_sender.clone()).await {
                     let error_message = ServerMessage::Error { message: err.clone() };
-                    if let Err(err) = sender.send(error_message).await {
+                    if let Err(err) = reply_sender.send(error_message).await {
                         error!("{err}");
                     }
                 }
             }
-            GameCommand::New { game_id, player_id } => {
-                let sender = match self.get_sender(&player_id) {
-                    Some(s) => s,
-                    None => return,
-                };
+            GameCommand::New { game_id, reply_sender } => {
                 if let Err(err) = self.handle_new(game_id).await {
                     let error_message = ServerMessage::Error { message: err.clone() };
-                    if let Err(err) = sender.send(error_message).await {
+                    if let Err(err) = reply_sender.send(error_message).await {
                         error!("{err}");
                     }
                 }
             }
-            GameCommand::Create { player_id } => {
-                let sender = match self.get_sender(&player_id) {
-                    Some(s) => s,
-                    None => return,
-                };
-                let game_id = self.handle_create(player_id, sender.clone()).await;
+            GameCommand::Create {
+                player_id,
+                reply_sender,
+            } => {
+                let game_id = self.handle_create(player_id, reply_sender.clone()).await;
 
                 let created_message = ServerMessage::CreatedStatus { game_id: game_id };
-                if let Err(err) = sender.send(created_message).await {
+                if let Err(err) = reply_sender.send(created_message).await {
                     error!("{err}");
                 }
             }
@@ -287,16 +271,13 @@ impl GameCoordinator {
                 game_id,
                 player_id,
                 word,
+                reply_sender,
             } => {
-                let sender = match self.get_sender(&player_id) {
-                    Some(s) => s,
-                    None => return,
-                };
                 if let Err(err) = self.handle_guess(player_id, game_id, word).await {
                     let error_message = ServerMessage::Error {
                         message: err.to_string(),
                     };
-                    if let Err(err) = sender.send(error_message).await {
+                    if let Err(err) = reply_sender.send(error_message).await {
                         error!("{err}");
                     }
                 }
@@ -310,16 +291,26 @@ impl GameCoordinator {
     }
 
     async fn handle_join(&mut self, player_id: PlayerId, game_id: GameId, sender: PlayerSender) -> Result<(), String> {
+        if let Some(old_game_id) = self.player_games.get(&player_id) {
+            if *old_game_id == game_id {
+                return Err("You are already in that game".to_string());
+            }
+        }
+
+        if let Some(old_game_id) = self.player_games.remove(&player_id) {
+            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id).await {
+                return Err(err.to_string());
+            };
+        }
+
         let game = self
             .games
             .get_mut(&game_id)
             .ok_or_else(|| "Game not found".to_string())?;
-        if let Some(_) = game.player_senders.get(&player_id) {
-            return Err("You are already in this game".to_string());
-        }
 
         game.add_sender(player_id.clone(), sender.clone());
-        game.board_state.add_player(player_id);
+        game.board_state.add_player(player_id.clone());
+        self.player_games.insert(player_id, game_id.clone());
 
         let join_message = ServerMessage::JoinStatus {
             board_state: game.board_state.clone(),
@@ -333,8 +324,8 @@ impl GameCoordinator {
 
         let mut new_game = Game::new(player_id.clone());
         new_game.add_sender(player_id.clone(), sender);
-        new_game.board_state.add_player(player_id);
-
+        new_game.board_state.add_player(player_id.clone());
+        self.player_games.insert(player_id, game_id.clone());
         self.add_game(game_id.clone(), new_game);
 
         game_id
@@ -346,7 +337,7 @@ impl GameCoordinator {
             .get_mut(&game_id)
             .ok_or_else(|| "Game not found".to_string())?;
         game.reset();
-        let new_message = ServerMessage::Newgame {
+        let new_message = ServerMessage::NewGame {
             board_state: game.board_state.clone(),
         };
         GameCoordinator::broadcast_message(game, new_message).await;

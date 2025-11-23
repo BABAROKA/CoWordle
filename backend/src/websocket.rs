@@ -4,7 +4,7 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio::sync::mpsc;
-use tracing::{error, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,7 +19,6 @@ enum ClientMessage {
     },
     NewGame {
         game_id: GameId,
-        player_id: PlayerId,
     },
     GuessWord {
         game_id: GameId,
@@ -34,6 +33,7 @@ enum ClientMessage {
 
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
+    info!("player connected");
     let player_id = format!("User-{}", Uuid::new_v4().to_string());
     let mut game_id_disconnect: Option<String> = None;
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
@@ -56,14 +56,6 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
             error!("Failed to serialize welcome message: {:?}", err);
             return;
         }
-    }
-
-    let register_message = GameCommand::RegisterPlayer {
-        player_id: player_id.clone(),
-        reply_sender: player_tx,
-    };
-    if let Err(err) = tx.send(register_message).await {
-        error!("{err}");
     }
 
     loop {
@@ -94,17 +86,17 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                             Ok(request) => {
                                 let command = match request {
                                     ClientMessage::CreateGame {player_id} => {
-                                        GameCommand::Create { player_id: player_id}
+                                        GameCommand::Create { player_id: player_id, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::JoinGame {player_id, game_id} => {
                                         game_id_disconnect = Some(game_id.clone());
-                                        GameCommand::Join { game_id: game_id, player_id: player_id}
+                                        GameCommand::Join { game_id: game_id, player_id: player_id, reply_sender: player_tx.clone()}
                                     },
-                                    ClientMessage::NewGame {game_id, player_id} => {
-                                        GameCommand::New { game_id: game_id, player_id: player_id }
+                                    ClientMessage::NewGame {game_id} => {
+                                        GameCommand::New { game_id: game_id, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::GuessWord {player_id, game_id, word} => {
-                                        GameCommand::Guess { game_id: game_id, player_id: player_id, word: word}
+                                        GameCommand::Guess { game_id: game_id, player_id: player_id, word: word, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::DisconnectPlayer {player_id, game_id} => {
                                         GameCommand::Disconnect { game_id: game_id, player_id: player_id }
