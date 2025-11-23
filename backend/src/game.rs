@@ -14,6 +14,7 @@ const MAX_GUESSES: usize = 6;
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
     CreatedStatus {
+        game_status: GameStatus,
         game_id: GameId,
     },
     JoinStatus {
@@ -38,6 +39,7 @@ pub enum ServerMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum GameStatus {
+    Waiting,
     InProgress,
     Won,
     Lost,
@@ -262,7 +264,7 @@ impl GameCoordinator {
             } => {
                 let game_id = self.handle_create(player_id, reply_sender.clone()).await;
 
-                let created_message = ServerMessage::CreatedStatus { game_id: game_id };
+                let created_message = ServerMessage::CreatedStatus {game_status:GameStatus::Waiting, game_id: game_id };
                 if let Err(err) = reply_sender.send(created_message).await {
                     error!("{err}");
                 }

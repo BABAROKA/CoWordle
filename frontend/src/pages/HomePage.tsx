@@ -11,6 +11,7 @@ const HomePage = () => {
 	const playerId = useGame(state => state.playerId);
 	const gameId = useGame(state => state.gameId);
 	const gameStatus = useGame(state => state.gameStatus);
+	const setGameId = useGame(state => state.setGameId);
 
 	const createGame = () => {
 		if (playerId != null) {
@@ -23,11 +24,15 @@ const HomePage = () => {
 		if (playerId != null && id.length == 5) {
 			const joinMessage: ClientMessage = {action: "joinGame", playerId, gameId: id};
 			sendMessage(JSON.stringify(joinMessage));
+			setGameId(id);
 		}
 	}
 
 	const guessWord = (word: string) => {
 		if (playerId == null || word.length != 5 || gameId == null) {
+			console.log(playerId);
+			console.log(gameId);
+			console.log(word.length);
 			return;
 		}
 		const guessMessage: ClientMessage = {action: "guessWord", playerId, gameId, word};
@@ -37,7 +42,7 @@ const HomePage = () => {
 	return (
 		<main className="bg-black w-full h-screen text-white">
 			<NavBar />
-			{gameStatus ? 
+			{gameStatus != null && gameStatus != "waiting" ? 
 				(<Game guessWord={guessWord} />):
 				(<Join createGame={createGame} joinGame={joinGame}/>)
 			}

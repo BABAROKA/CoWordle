@@ -41,3 +41,14 @@
   font-display: swap;
   src: url('PlayfairDisplay-Medium.ttf') format('truetype');
 }
+
+@keyframes pop-animation {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@layer utilities {
+  .animate-pop {
+    animation: pop-animation 100ms ease-in-out 1;
+  }
+}

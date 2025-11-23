@@ -18,13 +18,14 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 			setCurrentGuess(prev => prev + key);
 		}
 		if (key == "ENTER" && currentGuess.length == 5) {
+			console.log("lol");
 			guessWord(currentGuess);
 			setCurrentGuess("");
 		}
 		if (key == "BACKSPACE" && currentGuess.length > 0) {
 			setCurrentGuess(prev => prev.slice(0, -1));
 		}
-	}, [currentGuess, currentTurn])
+	}, [currentGuess, currentTurn, playerId, guessWord])
 
 	useEffect(() => {
 		window.addEventListener('keydown', handleKey);
@@ -38,16 +39,18 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 			<div className="grid grid-rows-6 gap-2 mt-30">
 				{Array.from({ length: 6 }).map((_, i) => {
 					let rowWord = "";
-					if (guesses != null) {
+					let colors: string[] | null = null;
 
+					if (guesses != null) {
 						if (i < guesses.length) {
 							rowWord = guesses[i].word ?? "";
+							colors = guesses[i].status;
 						} else if (i == guesses.length) {
 							rowWord = currentGuess;
 						}
 					}
 					return (
-						<Row key={i} word={rowWord} />
+						<Row key={i} word={rowWord} colors={colors}/>
 					)
 				})}
 			</div>
@@ -55,12 +58,20 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 	)
 }
 
-const Row = ({ word }: { word: string }) => {
+const Row = ({ word, colors }: { word: string, colors: string[] | null }) => {
 	const wordArray = Array.from({ length: 5 }, (_, i) => word[i] || null);
+	const isCurrentRow = colors == null && word.length > 0;
 	return (
 		<div className="grid grid-cols-5 gap-2">
 			{wordArray.map((letter, i) => (
-				<div key={i} className="border border-white aspect-square size-12 rounded-md grid place-items-center text-3xl font-bold leading-none">{letter ?? ""}</div>
+				<div key={i} className={`${colors != null 
+					? colors[i] == "green" 
+						? "bg-green-700" 
+						: colors[i] == "yellow" 
+							? "bg-yellow-400" 
+							: "bg-gray-800"
+					: ""} border border-white aspect-square size-12 rounded-md grid place-items-center text-3xl font-bold leading-none
+					${isCurrentRow && letter? "animate-pop": ""}`}>{letter ?? ""}</div>
 			))}
 		</div>
 	)

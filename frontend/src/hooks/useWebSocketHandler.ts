@@ -15,7 +15,9 @@ const useWebsocketHandler = () => {
 
 	const setGameId = useGame(state => state.setGameId);
 	const setPlayerId = useGame(state => state.setPlayerId);
+	const setGameStatus = useGame(state => state.setGameStatus)
 	const setGameData = useGame(state => state.setGameData);
+	const setSolution = useGame(state => state.setSolution);
 
 	const handleMessage = (message: MessageEvent) => {
 		if (!message) return;
@@ -25,6 +27,7 @@ const useWebsocketHandler = () => {
 			case "createdStatus":
 				console.log(data);
 				setGameId(data.gameId);
+				setGameStatus(data.gameStatus);
 				break;
 			case "joinStatus":
 				console.log(data);
@@ -41,6 +44,7 @@ const useWebsocketHandler = () => {
 			case "gameUpdate":
 				console.log(data);
 				setGameData(data.boardState.currentTurn, data.boardState.guesses, data.boardState.gameStatus, data.boardState.keyboardStatus, data.boardState.players);
+				setSolution(data.solution);
 				break;
 			case "error":
 				console.log(data);

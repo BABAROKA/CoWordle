@@ -62,7 +62,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
         tokio::select! {
             Some(msg) = player_rx.recv() => {
                 match &msg {
-                    ServerMessage::CreatedStatus {game_id} => game_id_disconnect = Some(game_id.clone()),
+                    ServerMessage::CreatedStatus {game_id, game_status:_ } => game_id_disconnect = Some(game_id.clone()),
                     _ => {}
                 }
                 match serde_json::to_string(&msg) {

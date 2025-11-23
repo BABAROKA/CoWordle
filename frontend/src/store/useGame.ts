@@ -17,6 +17,8 @@ export interface GameStore {
 
 	setGameId: (id: string) => void,
 	setPlayerId: (id: string) => void,
+	setGameStatus: (status: string) => void,
+	setSolution: (solution: string) => void,
 	setGameData: (currentTurn: string, guesses: guess[], gameStatus: string, keyboardStatus: Record<string, string>, players: string[]) => void,
 }
 
@@ -32,6 +34,8 @@ const useGame = create<GameStore>((set) => ({
 
 	setGameId: (id: string) => set({ gameId: id }),
 	setPlayerId: (id: string) => set({ playerId: id }),
+	setGameStatus: (status: string) => set({gameStatus: status}),
+	setSolution : (solution: string) => set({solution: solution}),
 	setGameData: (currentTurn, guesses, gameStatus, keyboardStatus, players) => set({
 		currentTurn,
 		guesses,

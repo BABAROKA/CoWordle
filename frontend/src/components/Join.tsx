@@ -1,4 +1,5 @@
 import React, {useState} from "react";
+import useGame from "../store/useGame";
 
 interface JoinProps {
 	createGame: () => void,
