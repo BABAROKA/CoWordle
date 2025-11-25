@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-interface guess {
+export interface guess {
 	status: string[],
 	word: string,
 }

@@ -5,7 +5,8 @@ import useGame from "../store/useGame";
 export type ClientMessage =
 	| { action: "createGame", playerId: string }
 	| { action: "joinGame", playerId: string, gameId: string }
-	| { action: "guessWord", playerId: string, gameId: string, word: string };
+	| { action: "guessWord", playerId: string, gameId: string, word: string }
+	| { action: "newGame", gameId: string };
 
 const WS_URL = 'ws://localhost:5905/ws';
 const useWs = (useWebSocket as any).default as typeof useWebSocket

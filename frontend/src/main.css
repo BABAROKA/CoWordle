@@ -42,9 +42,35 @@
   src: url('PlayfairDisplay-Medium.ttf') format('truetype');
 }
 
+@keyframes wordle-flip {
+	0%, 100% {transform: scaleY(1);}
+	50% {transform: scaleY(0);}
+}
+
+.wordle-flip {
+	animation-name: wordle-flip;
+	animation-duration: 0.5s;
+	animation-timing-function: cubic-bezier(0.6, 0.0, 1, 1);
+	animation-fill-mode: forwards;
+}
+
 @keyframes pop-animation {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    15% { transform: translateX(-8px); }
+    30% { transform: translateX(8px); }
+    45% { transform: translateX(-5px); }
+    60% { transform: translateX(5px); }
+    75% { transform: translateX(-3px); }
+    100% { transform: translateX(0); }
+}
+
+.animate-shake {
+    animation: shake 0.6s ease;
 }
 
 @layer utilities {
