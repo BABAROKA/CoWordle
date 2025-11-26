@@ -261,14 +261,23 @@ impl GameCoordinator {
             GameCommand::Create {
                 player_id,
                 reply_sender,
-            } => {
-                let game_id = self.handle_create(player_id, reply_sender.clone()).await;
-
-                let created_message = ServerMessage::CreatedStatus {game_status:GameStatus::Waiting, game_id: game_id };
-                if let Err(err) = reply_sender.send(created_message).await {
-                    error!("{err}");
+            } => match self.handle_create(player_id, reply_sender.clone()).await {
+                Ok(game_id) => {
+                    let created_message = ServerMessage::CreatedStatus {
+                        game_status: GameStatus::Waiting,
+                        game_id: game_id,
+                    };
+                    if let Err(err) = reply_sender.send(created_message).await {
+                        error!("{err}");
+                    }
                 }
-            }
+                Err(err) => {
+                    let error_message = ServerMessage::Error { message: err.clone() };
+                    if let Err(err) = reply_sender.send(error_message).await {
+                        error!("{err}");
+                    }
+                }
+            },
             GameCommand::Guess {
                 game_id,
                 player_id,
@@ -310,6 +319,10 @@ impl GameCoordinator {
             .get_mut(&game_id)
             .ok_or_else(|| "Game not found".to_string())?;
 
+        if game.player_senders.len() > 1 {
+            return Err("Already two players in this game".to_string());
+        }
+
         game.add_sender(player_id.clone(), sender.clone());
         game.board_state.add_player(player_id.clone());
         self.player_games.insert(player_id, game_id.clone());
@@ -321,7 +334,12 @@ impl GameCoordinator {
         Ok(())
     }
 
-    async fn handle_create(&mut self, player_id: PlayerId, sender: PlayerSender) -> GameId {
+    async fn handle_create(&mut self, player_id: PlayerId, sender: PlayerSender) -> Result<GameId, String> {
+        if let Some(old_game_id) = self.player_games.remove(&player_id) {
+            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id).await {
+                return Err(err.to_string());
+            };
+        }
         let game_id = dict::random_game_id();
 
         let mut new_game = Game::new(player_id.clone());
@@ -330,7 +348,7 @@ impl GameCoordinator {
         self.player_games.insert(player_id, game_id.clone());
         self.add_game(game_id.clone(), new_game);
 
-        game_id
+        Ok(game_id)
     }
 
     async fn handle_new(&mut self, game_id: GameId) -> Result<(), String> {

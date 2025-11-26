@@ -1,23 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-	--color-background-dark: oklch(0.92 0.01 340);;
-	--color-text: oklch(0.15 0.02 340);
-	--color-primary: oklch(0.4 0.1 340);
-	--color-secondary: oklch(0.4 0.1 160);
-	--color-border: oklch(0.6 0.02 340);
-	--color-danger: oklch(0.5 0.12 30);
-	--color-warning: oklch(0.5 0.05 100);
-	--color-success: oklch(0.5 0.05 160);
-	--color-info: oklch(0.5 0.05 260);
-	--color-highlight: oklch(1 0.02 340);
+	--color-background-dark: oklch(0.2 0 0);
+	--color-background: oklch(0.25 0 0);
+	--color-background-light: oklch(0.3 0 0);
 
-	--color-background: oklch(0.96 0.01 340);
-	--color-background-light: oklch(1 0.01 340);
-	--color-text-muted: oklch(0.4 0.02 340);
-	--color-primary-muted: oklch(0.6 0.1 340);
-	--color-border-muted: oklch(0.7 0.02 340);
-
+	--color-dark-gray: oklch(0.4 0 0);
+	--color-light-gray: oklch(0.7 0 0);
+	
+	--color-text: oklch(0.95 0 0);
+	--color-text-muted: oklch(0.6 0 0);
 
 	--shadow-s: inset 0 1px 2px #ffffff30,
 				0 1px 2px #00000030,
@@ -48,10 +40,7 @@
 }
 
 .wordle-flip {
-	animation-name: wordle-flip;
-	animation-duration: 0.5s;
-	animation-timing-function: cubic-bezier(0.6, 0.0, 1, 1);
-	animation-fill-mode: forwards;
+	animation: wordle-flip 700ms cubic-bezier(0.6, 0.0, 1, 1) forwards;
 }
 
 @keyframes pop-animation {
@@ -59,22 +48,6 @@
   50% { transform: scale(1.1); }
 }
 
-@keyframes shake {
-    0% { transform: translateX(0); }
-    15% { transform: translateX(-8px); }
-    30% { transform: translateX(8px); }
-    45% { transform: translateX(-5px); }
-    60% { transform: translateX(5px); }
-    75% { transform: translateX(-3px); }
-    100% { transform: translateX(0); }
-}
-
-.animate-shake {
-    animation: shake 0.6s ease;
-}
-
-@layer utilities {
-  .animate-pop {
-    animation: pop-animation 100ms ease-in-out 1;
-  }
+.animate-pop {
+	animation: pop-animation 100ms ease-in-out 1;
 }

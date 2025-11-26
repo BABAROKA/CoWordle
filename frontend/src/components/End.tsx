@@ -1,17 +1,23 @@
 import "../main.css";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import useGame from "../store/useGame";
 
 const End = ({ newGame }: { newGame: () => void }) => {
+	const [showEnd, setShowEnd] = useState(false);
+	useEffect(() => {
+		let delayTimeout = setTimeout(() => {
+			setShowEnd(true);
+		}, 1800);
+		return () => clearTimeout(delayTimeout);
+	}, [])
 
 	const status = useGame(state => state.gameStatus);
 	const solution = useGame(state => state.solution);
-	return (
-		<div className="w-full h-full flex flex-col gap-10 justify-center items-center">
-			<div className="text-6xl bg-[#111] rounded-xl py-6 px-10">Solution: {solution}</div>
-			<div className="flex flex-col gap-3">
-				<div className="text-3xl bg-[#111] rounded-xl py-6 px-10">You {status ?? ""} the Game</div>
-				<button onClick={newGame} className="bg-green-700 hover:bg-green-900 rounded-sm py-2 cursor-pointer">New Game</button>
+	return showEnd && (
+		<div className="fixed w-full h-screen z-50 flex justify-center items-center">
+			<div className="relative w-auto bg-background shadow-m py-10 px-10 gap-7 flex flex-col justify-center items-center rounded-xl">
+				<p className="text-3xl text-nowrap">You {status?.toUpperCase()} to the word "{solution}"</p>
+				<button onClick={newGame} className="bg-background-light shadow-s hover:shadow-m rounded-xl px-4 py-2 hover:bg-green-800 cursor-pointer transition-colors duration-200">New Game</button>
 			</div>
 		</div>
 	)
