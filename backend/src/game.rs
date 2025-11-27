@@ -11,14 +11,15 @@ pub type PlayerSender = mpsc::Sender<ServerMessage>;
 const MAX_GUESSES: usize = 6;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(tag = "status", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
-    CreatedStatus {
+    Created {
         game_status: GameStatus,
         game_id: GameId,
     },
-    JoinStatus {
+    Joined {
         board_state: BoardState,
+        game_id: GameId,
     },
     GameUpdate {
         board_state: BoardState,
@@ -33,6 +34,10 @@ pub enum ServerMessage {
     },
     Error {
         message: String,
+    },
+    PlayerData {
+        game_id: Option<GameId>,
+        player_id: Option<PlayerId>,
     },
 }
 
@@ -263,7 +268,7 @@ impl GameCoordinator {
                 reply_sender,
             } => match self.handle_create(player_id, reply_sender.clone()).await {
                 Ok(game_id) => {
-                    let created_message = ServerMessage::CreatedStatus {
+                    let created_message = ServerMessage::Created {
                         game_status: GameStatus::Waiting,
                         game_id: game_id,
                     };
@@ -306,10 +311,7 @@ impl GameCoordinator {
             if *old_game_id == game_id {
                 return Err("You are already in that game".to_string());
             }
-        }
-
-        if let Some(old_game_id) = self.player_games.remove(&player_id) {
-            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id).await {
+            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id.clone()).await {
                 return Err(err.to_string());
             };
         }
@@ -325,29 +327,45 @@ impl GameCoordinator {
 
         game.add_sender(player_id.clone(), sender.clone());
         game.board_state.add_player(player_id.clone());
-        self.player_games.insert(player_id, game_id.clone());
+        self.player_games.insert(player_id.clone(), game_id.clone());
 
-        let join_message = ServerMessage::JoinStatus {
+        let join_message = ServerMessage::Joined {
             board_state: game.board_state.clone(),
+            game_id: game_id.clone(),
         };
         GameCoordinator::broadcast_message(game, join_message).await;
+
+        let data_message = ServerMessage::PlayerData {
+            game_id: Some(game_id),
+            player_id: Some(player_id),
+        };
+        if let Err(err) = sender.send(data_message).await {
+            error!("Failed to send PlayerData to new player: {err}");
+        }
         Ok(())
     }
 
     async fn handle_create(&mut self, player_id: PlayerId, sender: PlayerSender) -> Result<GameId, String> {
-        if let Some(old_game_id) = self.player_games.remove(&player_id) {
-            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id).await {
+        if let Some(old_game_id) = self.player_games.get(&player_id) {
+            if let Err(err) = self.handle_disconnect(player_id.clone(), old_game_id.clone()).await {
                 return Err(err.to_string());
             };
         }
         let game_id = dict::random_game_id();
 
         let mut new_game = Game::new(player_id.clone());
-        new_game.add_sender(player_id.clone(), sender);
+        new_game.add_sender(player_id.clone(), sender.clone());
         new_game.board_state.add_player(player_id.clone());
-        self.player_games.insert(player_id, game_id.clone());
+        self.player_games.insert(player_id.clone(), game_id.clone());
         self.add_game(game_id.clone(), new_game);
 
+        let data_message = ServerMessage::PlayerData {
+            game_id: Some(game_id.clone()),
+            player_id: Some(player_id),
+        };
+        if let Err(err) = sender.send(data_message).await {
+            error!("Failed to send PlayerData to new player: {err}");
+        }
         Ok(game_id)
     }
 
@@ -411,12 +429,13 @@ impl GameCoordinator {
             .get_mut(&game_id)
             .ok_or_else(|| "Game not found".to_string())?;
 
-        game.player_senders.remove(&player_id);
-        game.board_state.players.retain(|id| id != &player_id);
-
         if game.board_state.current_turn == player_id {
             game.board_state.next_turn();
         }
+
+        game.player_senders.remove(&player_id);
+        game.board_state.players.retain(|id| id != &player_id);
+        self.player_games.remove(&player_id);
 
         if game.board_state.players.is_empty() {
             self.games.remove(&game_id);

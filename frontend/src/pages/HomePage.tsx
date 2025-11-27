@@ -28,7 +28,6 @@ const HomePage = () => {
 		if (playerId != null && id.length == 5) {
 			const joinMessage: ClientMessage = { action: "joinGame", playerId, gameId: id };
 			sendMessage(JSON.stringify(joinMessage));
-			setGameId(id);
 			setSearchParams({});
 		}
 	}, [sendMessage, playerId, setGameId])
@@ -37,6 +36,7 @@ const HomePage = () => {
 		if (playerId == null || word.length != 5 || gameId == null) {
 			return;
 		}
+		console.log("lol");
 		const guessMessage: ClientMessage = { action: "guessWord", playerId, gameId, word };
 		sendMessage(JSON.stringify(guessMessage));
 	}, [playerId, gameId, sendMessage])

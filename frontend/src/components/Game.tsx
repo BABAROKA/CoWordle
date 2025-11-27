@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "../main.css";
 import useGame from "../store/useGame";
 import Keyboard from "./Keyboard";
@@ -8,15 +8,15 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 	const playerId = useGame(state => state.playerId);
 	const currentTurn = useGame(state => state.currentTurn);
 	const gameStatus = useGame(state => state.gameStatus)
+	const players = useGame(state => state.players);
 
 	const [currentGuess, setCurrentGuess] = useState("");
 	const [shownGuesses, setShownGuesses] = useState(guesses);
 
-	const shakeRef = useRef<HTMLDivElement | null>(null)
-
 	const handleKey = useCallback((char: string) => {
 		if (currentTurn !== playerId) return;
 		if (gameStatus != "inProgress") return;
+		if (players.length != 2) return;
 
 		const key = char.toUpperCase();
 
@@ -31,7 +31,7 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 		if ((key === "BACKSPACE" || key == "⌫") && currentGuess.length > 0) {
 			setCurrentGuess((prev) => prev.slice(0, -1));
 		}
-	}, [currentTurn, currentGuess, playerId, guessWord, gameStatus]);
+	}, [currentTurn, currentGuess, playerId, guessWord, gameStatus, players]);
 
 	const onKeyPress = useCallback(
 		(e: KeyboardEvent) => {
@@ -77,7 +77,6 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 							word={rowWord}
 							colors={colors}
 							flipRow={shownGuesses ? i === shownGuesses.length - 1 : false}
-							ref={i === shownGuesses?.length ? shakeRef : null}
 						/>
 					);
 				})}
@@ -94,12 +93,11 @@ interface RowProps {
 	flipRow: boolean;
 };
 
-const Row = React.forwardRef<HTMLDivElement, RowProps>((props, ref) => {
-	const { word, colors, flipRow } = props;
+const Row = ({ word, colors, flipRow }: RowProps) => {
 	const wordArray = Array.from({ length: 5 }, (_, i) => word[i] || null);
 
 	return (
-		<div ref={ref} className={`grid grid-cols-5 gap-2 transition-all ${flipRow ? "wordle-flip" : ""}`}>
+		<div className={`grid grid-cols-5 gap-2 transition-all ${flipRow ? "wordle-flip" : ""}`}>
 			{wordArray.map((letter, i) => (
 				<Tile
 					key={i}
@@ -112,7 +110,7 @@ const Row = React.forwardRef<HTMLDivElement, RowProps>((props, ref) => {
 			))}
 		</div>
 	);
-});
+};
 
 interface GameTile {
 	letter: string | null;
@@ -123,6 +121,8 @@ interface GameTile {
 }
 
 const Tile = ({ letter, status, i, currentRow, flipRow }: GameTile) => {
+	const players = useGame(state => state.players);
+
 	let animationColor = "";
 	let guessesColor = "";
 
@@ -141,7 +141,7 @@ const Tile = ({ letter, status, i, currentRow, flipRow }: GameTile) => {
 		<div className={currentRow && letter ? "animate-pop" : ""} style={{ "--i": i } as React.CSSProperties}>
 			<div
 				style={{ "--tileColor": animationColor } as React.CSSProperties}
-				className={`${!(flipRow && letter) ? guessesColor : "border-light-gray"} shadow-s rounded-md border aspect-square size-14 grid place-items-center text-3xl font-bold leading-none`}
+				className={`${!(flipRow && letter) ? guessesColor : "border-light-gray"} ${players.length == 2 ? "" : "bg-light-gray"} shadow-s rounded-md border aspect-square size-14 grid place-items-center text-3xl font-bold leading-none`}
 			>
 				{letter ?? ""}
 			</div>

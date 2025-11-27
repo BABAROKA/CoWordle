@@ -10,6 +10,10 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum ClientMessage {
+    Connect {
+        game_id: Option<PlayerId>,
+        player_id: Option<PlayerId>,
+    },
     CreateGame {
         player_id: PlayerId,
     },
@@ -34,47 +38,33 @@ enum ClientMessage {
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
     info!("player connected");
-    let player_id = format!("User-{}", Uuid::new_v4().to_string());
     let mut game_id_disconnect: Option<String> = None;
+    let mut player_id_disconnect: Option<String> = None;
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
 
-    tracing::Span::current().record("player_id", &player_id);
     let (mut tw, mut rw) = socket.split();
-
-    let welcome_message = ServerMessage::Welcome {
-        player_id: player_id.clone(),
-        message: "Welcome new player".to_string(),
-    };
-    match serde_json::to_string(&welcome_message) {
-        Ok(message) => {
-            if tw.send(Message::Text(message.into())).await.is_err() {
-                error!("Unable to send welcome message");
-                return;
-            }
-        }
-        Err(err) => {
-            error!("Failed to serialize welcome message: {:?}", err);
-            return;
-        }
-    }
 
     loop {
         tokio::select! {
             Some(msg) = player_rx.recv() => {
                 match &msg {
-                    ServerMessage::CreatedStatus {game_id, game_status:_ } => game_id_disconnect = Some(game_id.clone()),
-                    _ => {}
-                }
-                match serde_json::to_string(&msg) {
-                    Ok(message) => {
-                        if let Err(err) = tw.send(Message::Text(message.into())).await {
-                            error!("Unable to send message to client {err}");
-                            break;
+                    ServerMessage::PlayerData {game_id, player_id} => {
+                        game_id_disconnect = game_id.clone();
+                        player_id_disconnect = player_id.clone();
+                    }
+                    _ => {
+                        match serde_json::to_string(&msg) {
+                            Ok(message) => {
+                                if let Err(err) = tw.send(Message::Text(message.into())).await {
+                                    error!("Unable to send message to client {err}");
+                                    break;
+                                }
+                            },
+                            Err(err) => {
+                                error!("Failed to serialize message: {:?}", err);
+                                break;
+                            }
                         }
-                    },
-                    Err(err) => {
-                        error!("Failed to serialize message: {:?}", err);
-                        break;
                     }
                 }
             }
@@ -84,12 +74,29 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                     Message::Text(text) => {
                         match serde_json::from_str::<ClientMessage>(&text.to_string()) {
                             Ok(request) => {
-                                let command = match request {
+                                let command: GameCommand = match request {
+                                    ClientMessage::Connect {game_id, player_id} => {
+                                        if let Some(gid) = game_id && let Some(pid) = player_id {
+                                            GameCommand::Join { game_id: gid, player_id: pid, reply_sender: player_tx.clone()}
+                                        } else {
+                                            let generated_player_id = format!("User-{}", Uuid::new_v4().to_string());
+
+                                            let welcome_message = serde_json::to_string(&ServerMessage::Welcome {
+                                                player_id: generated_player_id.clone(),
+                                                message: "Welcome new player".to_string(),
+                                            });
+                                            if let Ok(message) = welcome_message {
+                                                if tw.send(Message::Text(message.into())).await.is_err() {
+                                                    error!("Unable to send welcome message");
+                                                }
+                                            }
+                                            continue;
+                                        }
+                                    },
                                     ClientMessage::CreateGame {player_id} => {
                                         GameCommand::Create { player_id: player_id, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::JoinGame {player_id, game_id} => {
-                                        game_id_disconnect = Some(game_id.clone());
                                         GameCommand::Join { game_id: game_id, player_id: player_id, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::NewGame {game_id} => {
@@ -126,14 +133,17 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
         }
     }
 
-    if let Some(id) = &game_id_disconnect {
-        let command = GameCommand::Disconnect {
-            game_id: id.clone(),
-            player_id: player_id.clone(),
-        };
+    match (game_id_disconnect, player_id_disconnect) {
+        (Some(gid), Some(pid)) => {
+            let command = GameCommand::Disconnect {
+                game_id: gid,
+                player_id: pid,
+            };
 
-        if let Err(err) = tx.send(command).await {
-            error!("Unable to send message to game coordinator {err}");
+            if let Err(err) = tx.send(command).await {
+                error!("Unable to send message to game coordinator {err}");
+            }
         }
+        _ => {}
     }
 }
