@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import "../main.css";
 import useGame from "../store/useGame";
 import Keyboard from "./Keyboard";
@@ -99,59 +99,49 @@ const Row = React.forwardRef<HTMLDivElement, RowProps>((props, ref) => {
 	const wordArray = Array.from({ length: 5 }, (_, i) => word[i] || null);
 
 	return (
-		<div ref={ref} className="grid grid-cols-5 gap-2 transition-all">
+		<div ref={ref} className={`grid grid-cols-5 gap-2 transition-all ${flipRow ? "wordle-flip" : ""}`}>
 			{wordArray.map((letter, i) => (
 				<Tile
 					key={i}
 					letter={letter}
 					status={colors ? colors[i] : null}
-					delay={`${i * 200}`}
-					flipRow={flipRow}
+					i={i}
 					currentRow={colors == null && word.length > 0}
+					flipRow={flipRow}
 				/>
 			))}
 		</div>
 	);
 });
 
-const Tile = ({
-	letter,
-	status,
-	delay,
-	flipRow,
-	currentRow,
-}: {
+interface GameTile {
 	letter: string | null;
 	status: string | null;
-	delay: string;
-	flipRow: boolean;
+	i: number,
 	currentRow: boolean;
-}) => {
-	const [startAnimation, setStartAnimation] = useState(false);
+	flipRow: boolean
+}
 
-	useEffect(() => {
-		if (flipRow) setStartAnimation(true);
-	}, [flipRow]);
+const Tile = ({ letter, status, i, currentRow, flipRow }: GameTile) => {
+	let animationColor = "";
+	let guessesColor = "";
 
-	const tileState =
-		status === "green"
-			? "bg-green-800 border-green-800"
-			: status === "yellow"
-				? "bg-yellow-600 border-yellow-600"
-				: status === "gray"
-					? "bg-dark-gray border-dark-gray"
-					: "border-light-gray";
+	if (status == "green") {
+		animationColor = "#016630";
+		guessesColor = "bg-green-800 border-green-800";
+	} else if (status == "yellow") {
+		animationColor = "#d08700";
+		guessesColor = "bg-yellow-600 border-yellow-600"
+	} else if (status == "gray") {
+		animationColor = "#484848";
+		guessesColor = "bg-dark-gray border-dark-gray"
+	}
 
 	return (
-		<div className={currentRow && letter ? "animate-pop" : ""}>
+		<div className={currentRow && letter ? "animate-pop" : ""} style={{ "--i": i } as React.CSSProperties}>
 			<div
-				style={{"--delay": `${delay}ms`, animationDelay: `${delay}ms` } as React.CSSProperties}
-				className={`
-					shadow-s rounded-md border aspect-square size-14 grid place-items-center text-3xl font-bold leading-none transition-all
-					${tileState}
-					${startAnimation && flipRow ? "wordle-flip" : ""}
-					[transition-delay:var(--delay)]
-				`}
+				style={{ "--tileColor": animationColor } as React.CSSProperties}
+				className={`${!(flipRow && letter) ? guessesColor : "border-light-gray"} shadow-s rounded-md border aspect-square size-14 grid place-items-center text-3xl font-bold leading-none`}
 			>
 				{letter ?? ""}
 			</div>
