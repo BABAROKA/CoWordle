@@ -15,3 +15,6 @@ futures = "0.3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tower-http = { version = "0.5", features = ["trace"] }
+governor = "0.10.2"
+tower_governor = "0.8.0"
+nonzero_ext = "0.3.0"

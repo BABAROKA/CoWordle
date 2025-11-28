@@ -1,6 +1,8 @@
 use crate::game::{GameCommand, GameId, PlayerId, ServerMessage};
 use axum::extract::ws::{Message, WebSocket};
 use futures::{sink::SinkExt, stream::StreamExt};
+use governor::{Quota, RateLimiter};
+use nonzero_ext::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio::sync::mpsc;
@@ -44,6 +46,9 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
 
     let (mut tw, mut rw) = socket.split();
 
+    let quota = Quota::per_second(nonzero!(1u32)).allow_burst(nonzero!(6u32));
+    let limit = RateLimiter::direct(quota);
+
     loop {
         tokio::select! {
             Some(msg) = player_rx.recv() => {
@@ -72,6 +77,17 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
             Some(Ok(msg)) = rw.next() => {
                 match msg {
                     Message::Text(text) => {
+                        if let Err(_) = limit.check() {
+                            let error_message = serde_json::to_string(&ServerMessage::Error {
+                                message: "Rate limit reached wait".to_string(),
+                            });
+                            if let Ok(message) = error_message {
+                                if let Err(_) = tw.send(Message::Text(message.into())).await {
+                                    error!("Error sending rate limite messgae");
+                                }
+                            }
+                            continue;
+                        }
                         match serde_json::from_str::<ClientMessage>(&text.to_string()) {
                             Ok(request) => {
                                 let command: GameCommand = match request {

@@ -36,7 +36,6 @@ const HomePage = () => {
 		if (playerId == null || word.length != 5 || gameId == null) {
 			return;
 		}
-		console.log("lol");
 		const guessMessage: ClientMessage = { action: "guessWord", playerId, gameId, word };
 		sendMessage(JSON.stringify(guessMessage));
 	}, [playerId, gameId, sendMessage])
