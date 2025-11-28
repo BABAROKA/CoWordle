@@ -59,13 +59,11 @@ const HomePage = () => {
 		<main className="bg-background-dark w-full h-screen text-text">
 			{gameStatus == null || gameStatus == "waiting" ?
 				<Join createGame={createGame} joinGame={joinGame} /> :
-				gameStatus != "inProgress" ?
-					<>
-						<End newGame={newGame} />
-						<Game guessWord={guessWord} />
-
-					</> :
+				<>
+					{gameStatus != "inProgress" && <End newGame={newGame} />}
 					<Game guessWord={guessWord} />
+
+				</>
 			}
 		</main>
 	)

@@ -34,6 +34,17 @@
   src: url('PlayfairDisplay-Medium.ttf') format('truetype');
 }
 
+@keyframes key-color {
+	0% { background-color: "#9e9e9e";}
+	100% {background-color: var(--keyColor);}
+}
+
+.key-color {
+	animation-name: key-color;
+	animation-delay: 1.7s;
+	animation-fill-mode: forwards;
+}
+
 @keyframes wordle-flip {
 	0%, 100% {transform: scaleY(1);}
 	50% {transform: scaleY(0);}

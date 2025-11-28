@@ -180,6 +180,10 @@ impl Game {
             _ => true,
         }
     }
+     
+    fn has_player(&self, player_id: &PlayerId) -> bool {
+        self.board_state.players.iter().any(|x| x == player_id)
+    }
 }
 
 pub enum GameCommand {
@@ -328,6 +332,10 @@ impl GameCoordinator {
         game.add_sender(player_id.clone(), sender.clone());
         game.board_state.add_player(player_id.clone());
         self.player_games.insert(player_id.clone(), game_id.clone());
+        
+        if !game.has_player(&game.board_state.current_turn) {
+            game.board_state.current_turn = player_id.clone();
+        }
 
         let join_message = ServerMessage::Joined {
             board_state: game.board_state.clone(),
@@ -428,10 +436,6 @@ impl GameCoordinator {
             .games
             .get_mut(&game_id)
             .ok_or_else(|| "Game not found".to_string())?;
-
-        if game.board_state.current_turn == player_id {
-            game.board_state.next_turn();
-        }
 
         game.player_senders.remove(&player_id);
         game.board_state.players.retain(|id| id != &player_id);

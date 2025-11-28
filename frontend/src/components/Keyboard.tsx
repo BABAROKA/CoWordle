@@ -38,16 +38,20 @@ const KeyboardRow = ({ row, handleKey }: { row: string[] } & KeyboardProp) => {
 
 const KeyboardTile = ({ letter, letterStatus, handleKey }: { letter: string, letterStatus: string } & KeyboardProp) => {
 	const width = letter == "Enter" || letter == "⌫" ? "w-16" : "w-10";
-	const color = letterStatus === "green"
-		? "bg-green-800"
-		: letterStatus === "yellow"
-			? "bg-yellow-600"
-			: letterStatus == "gray" ?
-				"bg-dark-gray" :
-				"bg-light-gray"
+
+	const animationColor = {
+		"green": "#016630",
+		"yellow": "#d08700",
+		"gray": "#484848",
+	}[letterStatus];
 
 	return (
-		<button onClick={() => handleKey(letter)} className={`shadow-s cursor-pointer h-14 ${width} ${color} rounded-sm text-xl transition-colors delay-1500`}>{letter}</button>
+		<button
+			style={{ "--keyColor": animationColor } as React.CSSProperties}
+			onClick={() => handleKey(letter)}
+			className={`shadow-s cursor-pointer h-14 ${width} ${animationColor == undefined ? "": "key-color"} bg-light-gray rounded-sm text-xl`}>
+			{letter}
+		</button>
 	)
 }
 

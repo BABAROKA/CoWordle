@@ -44,7 +44,7 @@ const Game = ({ guessWord }: { guessWord: (word: string) => void }) => {
 		const prevLength = shownGuesses?.length || 0;
 		const currentLength = guesses?.length || 0;
 
-		if (currentLength > prevLength) {
+		if (currentLength > prevLength || currentLength == 0) {
 			setCurrentGuess("");
 			setShownGuesses(guesses);
 		}
