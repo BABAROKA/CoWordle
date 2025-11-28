@@ -135,13 +135,15 @@ const Tile = ({ letter, status, i, currentRow, flipRow }: GameTile) => {
 	} else if (status == "gray") {
 		animationColor = "#484848";
 		guessesColor = "bg-dark-gray border-dark-gray"
+	} else {
+		guessesColor = "border-light-gray"
 	}
 
 	return (
 		<div className={currentRow && letter ? "animate-pop" : ""} style={{ "--i": i } as React.CSSProperties}>
 			<div
 				style={{ "--tileColor": animationColor } as React.CSSProperties}
-				className={`${!(flipRow && letter) ? guessesColor : "border-light-gray"} ${players.length == 2 ? "" : "bg-light-gray"} shadow-s rounded-md border aspect-square size-14 grid place-items-center text-3xl font-bold leading-none`}
+				className={`${!(flipRow && letter) ? guessesColor : "border-light-gray"} ${players.length == 2 ? "" : "bg-light-gray"} shadow-s rounded-md border-2 aspect-square size-14 grid place-items-center text-3xl font-bold leading-none`}
 			>
 				{letter ?? ""}
 			</div>
