@@ -39,7 +39,6 @@ enum ClientMessage {
 
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
-    info!("player connected");
     let mut game_id_disconnect: Option<String> = None;
     let mut player_id_disconnect: Option<String> = None;
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
@@ -97,6 +96,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                                         } else {
                                             let generated_player_id = format!("User-{}", Uuid::new_v4().to_string());
 
+                                            info!("player connected {}", &generated_player_id);
                                             let welcome_message = serde_json::to_string(&ServerMessage::Welcome {
                                                 player_id: generated_player_id.clone(),
                                                 message: "Welcome new player".to_string(),

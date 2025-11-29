@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import useWebSocket from "react-use-websocket";
+import useWebSocket, { ReadyState } from "react-use-websocket";
 import useGame from "../store/useGame";
 
 export type ClientMessage =
@@ -7,7 +7,7 @@ export type ClientMessage =
 	| { action: "joinGame", playerId: string, gameId: string }
 	| { action: "guessWord", playerId: string, gameId: string, word: string }
 	| { action: "newGame", gameId: string }
-	| {action: "connect", gameId: string | null, playerId: string | null};
+	| { action: "connect", gameId: string | null, playerId: string | null };
 
 const WS_URL = 'ws://localhost:5905/ws';
 const useWs = (useWebSocket as any).default as typeof useWebSocket
@@ -18,15 +18,14 @@ const useWebsocketHandler = () => {
 	const setGameStatus = useGame(state => state.setGameStatus)
 	const setGameData = useGame(state => state.setGameData);
 	const setSolution = useGame(state => state.setSolution);
-	const setReadyState = useGame(state => state.setReadyState);
 	const gameId = useGame(state => state.gameId);
 	const playerId = useGame(state => state.playerId);
 
-	const { sendMessage, lastMessage, readyState } = useWs(WS_URL, {
+	const { sendMessage, lastMessage } = useWs(WS_URL, {
 		reconnectAttempts: 2,
 		reconnectInterval: 2000,
 		onOpen: () => {
-			const connectMessage: ClientMessage = {action: "connect", gameId, playerId};
+			const connectMessage: ClientMessage = { action: "connect", gameId, playerId };
 			sendMessage(JSON.stringify(connectMessage));
 		},
 	});
@@ -71,10 +70,6 @@ const useWebsocketHandler = () => {
 		if (!lastMessage) return;
 		handleMessage(lastMessage);
 	}, [lastMessage])
-
-	useEffect(() => {
-		setReadyState(readyState);
-	}, [readyState])
 
 	return {
 		sendMessage,
