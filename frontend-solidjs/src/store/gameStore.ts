@@ -1,5 +1,5 @@
 import { createStore } from "solid-js/store";
-import { type GameStore } from "../types";
+import type { GameStore } from "../types";
 
 const initialState: GameStore = {
 	playerId: null,

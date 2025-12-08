@@ -49,7 +49,6 @@ pub enum GameStatus {
     InProgress,
     Won,
     Lost,
-    Aborted,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -215,12 +214,6 @@ impl Game {
         self.board_state = new_board_state;
     }
 
-    fn add_sender(&mut self, player_id: PlayerId, reply_sender: PlayerSender) {
-        if !self.player_senders.contains_key(&player_id) {
-            self.player_senders.insert(player_id, reply_sender);
-        }
-    }
-
     fn check_guess(&self, guess: String) -> GuessResult {
         let mut solution_vec: Vec<char> = self.solution_word.to_uppercase().chars().collect();
         let mut guess_vec: Vec<char> = guess.to_uppercase().chars().collect();
@@ -294,7 +287,7 @@ impl Game {
             return Err("Already two players in this game".to_string());
         }
 
-        self.add_sender(player_id.clone(), sender.clone());
+        self.player_senders.insert(player_id.clone(), sender.clone());
         self.board_state.add_player(player_id.clone());
 
         if !self.has_player(&self.board_state.current_turn) {

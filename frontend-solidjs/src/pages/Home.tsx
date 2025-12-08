@@ -7,13 +7,13 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 
 const Home = () => {
 	const [inputId, setInputId] = createSignal<string>("")
-	const [readyState, sendMessage] = useWebsocket();
+	const [_, sendMessage] = useWebsocket();
 
 	const navigate = useNavigate();
-	const [searchParams, setSearchParams] = useSearchParams();
+	const [searchParams] = useSearchParams();
 
 	createEffect(() => {
-		if (readyState() != "OPEN" || !searchParams.join) return;
+		if (!searchParams.join) return;
 		const id = [searchParams.join].flat().join(",");
 		joinGame(id);
 	});
@@ -25,7 +25,7 @@ const Home = () => {
 	});
 
 	const createGame = () => {
-		if (readyState() != "OPEN" || gameStore.playerId == null) {
+		if (gameStore.playerId == null) {
 			return;
 		}
 
@@ -35,7 +35,7 @@ const Home = () => {
 
 	const joinGame = (id: string | null) => {
 		const trueId = id ?? inputId();
-		if (readyState() != "OPEN" || gameStore.playerId == null || trueId.length != 5) {
+		if (gameStore.playerId == null || trueId.length != 5) {
 			return;
 		}
 
