@@ -139,7 +139,7 @@ const BoardTile = (props: { letter: string, state: GameColor | "default", index:
 			style={{ "--i": props.index, "--tileColor": data.value }}
 		>
 			<div
-				class="size-16 border-2 flex justify-center items-center text-3xl font-bold rounded-md"
+				class="size-16 border-2 flex justify-center items-center text-3xl font-bold rounded-md shadow-s"
 				classList={{
 					"border-light-gray": props.flip,
 					[data.tailwind]: !props.flip,

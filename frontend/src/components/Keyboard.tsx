@@ -53,7 +53,7 @@ const KeyboardTile = (props: { key: string }) => {
 				"w-10": !bigKey,
 				[animationColor()]: true
 			}}
-			class="cursor-pointer h-13 flex justify-center items-center text-xl rounded-md transition-colors delay-[1.7s]"
+			class="cursor-pointer h-13 flex justify-center items-center text-xl rounded-md shadow-s transition-colors delay-[1.7s]"
 		>
 			{props.key}
 		</button>

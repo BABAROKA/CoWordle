@@ -1,6 +1,6 @@
 import { useWebsocket } from "../context/websocketContext";
 import "../main.css";
-import { gameStore, setGameStore } from "../store/gameStore";
+import { gameStore } from "../store/gameStore";
 import type { ClientMessage } from "../types";
 
 const EndData = () => {
@@ -8,8 +8,16 @@ const EndData = () => {
 
 	const sendNewGame = () => {
 		if (!gameStore.gameId) return;
-		const newGameMessage: ClientMessage = {action: "newGame", gameId: gameStore.gameId}
+		const newGameMessage: ClientMessage = { action: "newGame", gameId: gameStore.gameId }
 		sendMessage(newGameMessage);
+	}
+
+	const disconnect = () => {
+		if (!gameStore.playerId || !gameStore.gameId) {
+			return;
+		}
+		const disconnectMessage: ClientMessage = { action: "disconnectPlayer", playerId: gameStore.playerId, gameId: gameStore.gameId };
+		sendMessage(disconnectMessage);
 	}
 
 	return (
@@ -21,7 +29,7 @@ const EndData = () => {
 				</div>
 				<div class="flex gap-2">
 					<button onClick={sendNewGame} class="w-full text-nowrap grow bg-background-light py-2 px-4 rounded-xl hover:bg-green-800 cursor-pointer transition-colors duration-200">New Game</button>
-					<button onClick={() => setGameStore({gameId: null})} class="bg-background-light py-2 px-4 rounded-xl hover:bg-yellow-600 cursor-pointer transition-colors duration-200">Exit</button>
+					<button onClick={disconnect} class="bg-background-light py-2 px-4 rounded-xl hover:bg-yellow-600 cursor-pointer transition-colors duration-200">Exit</button>
 				</div>
 			</div>
 		</div>

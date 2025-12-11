@@ -19,7 +19,7 @@ const Home = () => {
 	});
 
 	createEffect(() => {
-		if (gameStore.gameStatus == "waiting" || gameStore.gameStatus == "inProgress") {
+		if (gameStore.gameStatus != "pending") {
 			if (!document.startViewTransition) {
 				navigate("/game", { replace: true });
 				return;

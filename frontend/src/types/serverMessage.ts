@@ -1,6 +1,6 @@
 export type GameColor = 'gray' | 'yellow' | 'green';
 
-type GameStatus = 'waiting' | 'inProgress' | 'won' | 'lost';
+type GameStatus = 'waiting' | 'inProgress' | 'won' | 'lost' | "pending";
 
 export interface Guess {
 	word: string,
@@ -21,4 +21,5 @@ export type ServerMessage =
 	| { status: 'gameUpdate', boardState: BoardState, solution: string | null, }
 	| { status: 'newGame', boardState: BoardState }
 	| { status: 'welcome', playerId: string, message: string }
-	| { status: 'error', message: string };
+	| { status: 'error', message: string }
+	| { status: "exited", boardState: BoardState};

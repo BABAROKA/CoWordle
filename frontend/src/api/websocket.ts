@@ -68,6 +68,15 @@ const createWebsocket = () => {
 					players: data.boardState.players,
 				});
 				break;
+			case "exited":
+				setGameStore({
+					currentTurn: data.boardState.currentTurn,
+					guesses: data.boardState.guesses,
+					gameStatus: data.boardState.gameStatus,
+					keyboardStatus: data.boardState.keyboardStatus,
+					players: data.boardState.players,
+				});
+				break;
 			case "error":
 				break;
 			default:
