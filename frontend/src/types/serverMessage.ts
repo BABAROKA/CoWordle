@@ -17,9 +17,9 @@ interface BoardState {
 
 export type ServerMessage =
 	| { status: 'created', gameStatus: GameStatus, gameId: string, }
-	| { status: 'joined', boardState: BoardState, gameId: string, }
+	| { status: 'joined', boardState: BoardState, gameId: string, solution: string | null, }
 	| { status: 'gameUpdate', boardState: BoardState, solution: string | null, }
 	| { status: 'newGame', boardState: BoardState }
 	| { status: 'welcome', playerId: string, message: string }
 	| { status: 'error', message: string }
-	| { status: "exited", boardState: BoardState};
+	| { status: "exited", boardState: BoardState };

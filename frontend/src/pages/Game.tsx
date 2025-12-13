@@ -7,7 +7,6 @@ import Keyboard from "../components/Keyboard";
 import { useNavigate } from "@solidjs/router";
 import EndData from "../components/EndData";
 import NavBar from "../components/NavBar";
-import Background from "../components/Background";
 
 const Game = () => {
 
@@ -24,7 +23,7 @@ const Game = () => {
 		if (gameStore.gameStatus == "lost" || gameStore.gameStatus == "won") {
 			setTimeout(() => {
 				setShowEnd(true);
-			}, 2600)
+			}, 2200)
 			return;
 		}
 		setShowEnd(false);

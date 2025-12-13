@@ -48,6 +48,7 @@ const KeyboardTile = (props: { key: string }) => {
 
 	return (
 		<button
+			type="button"
 			classList={{
 				"w-16": bigKey,
 				"w-10": !bigKey,

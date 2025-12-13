@@ -4,5 +4,5 @@ export type ClientMessage =
 	| { action: "guessWord", playerId: string, gameId: string, word: string }
 	| { action: "newGame", gameId: string }
 	| { action: "connect", gameId: string | null, playerId: string | null }
-	| { action: "disconnectPlayer", gameId: string, playerId: string };
+	| { action: "disconnectPlayer", playerId: string, gameId: string };
 

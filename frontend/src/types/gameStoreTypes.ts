@@ -1,5 +1,6 @@
 import { type Guess } from "./serverMessage";
 
+
 export interface GameStore {
 	playerId: string | null,
 	gameId: string | null,

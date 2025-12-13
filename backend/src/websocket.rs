@@ -13,7 +13,7 @@ use uuid::Uuid;
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum ClientMessage {
     Connect {
-        game_id: Option<PlayerId>,
+        game_id: Option<GameId>,
         player_id: Option<PlayerId>,
     },
     CreateGame {
@@ -122,7 +122,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                                         GameCommand::Guess { game_id: game_id, player_id: player_id, word: word, reply_sender: player_tx.clone()}
                                     },
                                     ClientMessage::DisconnectPlayer {player_id, game_id} => {
-                                        GameCommand::Disconnect { game_id: game_id, player_id: player_id }
+                                        GameCommand::Disconnect { game_id: game_id, player_id: player_id, }
                                     }
                                 };
 

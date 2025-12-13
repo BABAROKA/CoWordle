@@ -11,6 +11,12 @@ pub type CommandSender = mpsc::Sender<GameCommand>;
 
 const MAX_GUESSES: usize = 6;
 
+enum GameError {
+    StopGame,
+    JoinError(String),
+    GuessError(String),
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "status", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ServerMessage {
@@ -21,6 +27,7 @@ pub enum ServerMessage {
     Joined {
         board_state: BoardState,
         game_id: GameId,
+        solution: Option<String>,
     },
     GameUpdate {
         board_state: BoardState,
@@ -35,6 +42,9 @@ pub enum ServerMessage {
     },
     Error {
         message: String,
+    },
+    Exited {
+        board_state: BoardState,
     },
     PlayerData {
         game_id: Option<GameId>,
@@ -187,14 +197,16 @@ impl Game {
 
     async fn run(&mut self) {
         while let Some(cmd) = self.rx.recv().await {
-            if let Err(err) = self.process_command(cmd.clone()).await {
-                if err == "Stop Game" {
-                    break;
-                }
-                let error_message = ServerMessage::Error { message: err.clone() };
-                if let Some(reply_sender) = cmd.get_reply_sender() {
-                    if let Err(err) = reply_sender.send(error_message).await {
-                        error!("{err}");
+            if let Err(error) = self.process_command(cmd.clone()).await {
+                match error {
+                    GameError::StopGame => break,
+                    GameError::JoinError(err) | GameError::GuessError(err) => {
+                        let error_message = ServerMessage::Error { message: err };
+                        if let Some(reply_sender) = cmd.get_reply_sender() {
+                            if let Err(err) = reply_sender.send(error_message).await {
+                                error!("{err}");
+                            }
+                        }
                     }
                 }
             }
@@ -251,7 +263,7 @@ impl Game {
         self.board_state.players.iter().any(|x| x == player_id)
     }
 
-    async fn process_command(&mut self, command: GameCommand) -> Result<(), String> {
+    async fn process_command(&mut self, command: GameCommand) -> Result<(), GameError> {
         match command {
             GameCommand::Join {
                 game_id,
@@ -259,22 +271,20 @@ impl Game {
                 reply_sender,
             } => {
                 if let Err(err) = self.handle_join(player_id, game_id, reply_sender.clone()).await {
-                    return Err(err.to_string());
+                    return Err(err);
                 }
             }
             GameCommand::New { .. } => {
-                if let Err(err) = self.handle_new().await {
-                    return Err(err.to_string());
-                }
+                self.handle_new().await;
             }
             GameCommand::Guess { player_id, word, .. } => {
                 if let Err(err) = self.handle_guess(player_id, word).await {
-                    return Err(err.to_string());
+                    return Err(err);
                 }
             }
             GameCommand::Disconnect { player_id, .. } => {
                 if let Err(err) = self.handle_disconnect(player_id).await {
-                    return Err(err.to_string());
+                    return Err(err);
                 }
             }
             _ => {}
@@ -282,9 +292,14 @@ impl Game {
         Ok(())
     }
 
-    async fn handle_join(&mut self, player_id: PlayerId, game_id: GameId, sender: PlayerSender) -> Result<(), String> {
+    async fn handle_join(
+        &mut self,
+        player_id: PlayerId,
+        game_id: GameId,
+        sender: PlayerSender,
+    ) -> Result<(), GameError> {
         if self.player_senders.len() > 1 {
-            return Err("Already two players in this game".to_string());
+            return Err(GameError::JoinError("Already two players in this game".to_string()));
         }
 
         self.player_senders.insert(player_id.clone(), sender.clone());
@@ -294,9 +309,15 @@ impl Game {
             self.board_state.current_turn = player_id.clone();
         }
 
+        let solution_word = match self.board_state.game_status {
+            GameStatus::Lost | GameStatus::Won => Some(self.solution_word.clone()),
+            _ => None,
+        };
+
         let join_message = ServerMessage::Joined {
             board_state: self.board_state.clone(),
             game_id: game_id.clone(),
+            solution: solution_word,
         };
         Self::broadcast_message(self, join_message).await;
 
@@ -310,27 +331,32 @@ impl Game {
         Ok(())
     }
 
-    async fn handle_new(&mut self) -> Result<(), String> {
+    async fn handle_new(&mut self) {
         self.reset();
         let new_message = ServerMessage::NewGame {
             board_state: self.board_state.clone(),
         };
         Self::broadcast_message(self, new_message).await;
-        Ok(())
     }
 
-    async fn handle_guess(&mut self, player_id: PlayerId, word: String) -> Result<(), String> {
+    async fn handle_guess(&mut self, player_id: PlayerId, word: String) -> Result<(), GameError> {
+        if self.board_state.players.is_empty() {
+            return Err(GameError::StopGame);
+        }
         if self.has_ended() {
-            return Err("Game has ended you cant guess".to_string());
+            return Err(GameError::GuessError("Game has ended, play again or exit".to_string()));
         }
 
         let mut solution = None;
 
         if self.board_state.current_turn != player_id {
-            return Err("Not your turn to guess".to_string());
+            return Err(GameError::GuessError("Not your turn to guess".to_string()));
         }
         if !dict::valid_guess(&word) {
-            return Err("Not a valid word".to_string());
+            return Err(GameError::GuessError("Not a valid word".to_string()));
+        }
+        if word.len() != 5 {
+            return Err(GameError::GuessError("Word should be 5 letters long".to_string()));
         }
         let guess = self.check_guess(word);
         self.board_state.guesses.push(guess.clone());
@@ -343,6 +369,7 @@ impl Game {
             self.board_state.game_status = GameStatus::Lost;
             solution = Some(self.solution_word.clone());
         }
+
         Self::update_keyboard_status(self, &guess);
         self.board_state.next_turn();
 
@@ -355,17 +382,19 @@ impl Game {
         Ok(())
     }
 
-    async fn handle_disconnect(&mut self, player_id: PlayerId) -> Result<(), String> {
+    async fn handle_disconnect(&mut self, player_id: PlayerId) -> Result<(), GameError> {
         self.player_senders.remove(&player_id);
         self.board_state.players.retain(|id| id != &player_id);
 
         if self.board_state.players.is_empty() {
-            return Err("Stop Game".to_string());
+            return Err(GameError::StopGame);
         }
 
-        let game_update = ServerMessage::GameUpdate {
-            board_state: self.board_state.clone(),
-            solution: None,
+        let game_update = ServerMessage::Exited {
+            board_state: BoardState {
+                game_status: GameStatus::Waiting,
+                ..self.board_state.clone()
+            },
         };
 
         Self::broadcast_message(self, game_update).await;

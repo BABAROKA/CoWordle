@@ -13,7 +13,7 @@ const JoinData = () => {
 				</div>
 				<div class="flex gap-2">
 					<p class="bg-background-light py-2 px-4 rounded-xl">{clipboardCopy}</p>
-					<button onClick={() => navigator.clipboard.writeText(clipboardCopy)} class="bg-background-light py-2 px-4 rounded-xl hover:bg-green-800 cursor-pointer transition-colors duration-200">Copy</button>
+					<button type="button" onClick={() => navigator.clipboard.writeText(clipboardCopy)} class="bg-background-light py-2 px-4 rounded-xl hover:bg-green-800 cursor-pointer transition-colors duration-200">Copy</button>
 				</div>
 			</div>
 		</div>
