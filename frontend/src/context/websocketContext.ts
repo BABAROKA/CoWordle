@@ -3,10 +3,9 @@ import type { WebsocketState } from "../types";
 
 export const WebsocketContext = createContext<WebsocketState | undefined>(undefined);
 
-export const useWebsocket = () => {
+export const useWebsocket = (): WebsocketState => {
 	const context = useContext(WebsocketContext);
-	if (!context) {
-		throw new Error("can't find WebsocketContext");
-	}
-	return context;
+	if (context) return context;
+
+	throw new Error("can't find WebsocketContext");
 }

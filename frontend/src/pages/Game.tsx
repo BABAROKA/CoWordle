@@ -7,6 +7,7 @@ import Keyboard from "../components/Keyboard";
 import { useNavigate } from "@solidjs/router";
 import EndData from "../components/EndData";
 import NavBar from "../components/NavBar";
+import GuessProvider from "../providers/guessProvider";
 
 const Game = () => {
 
@@ -34,8 +35,10 @@ const Game = () => {
 			<NavBar />
 			<Switch fallback={
 				<div class="bg-background-dark w-full h-screen flex flex-col justify-center items-center gap-6">
-					<Board />
-					<Keyboard />
+					<GuessProvider>
+						<Board />
+						<Keyboard />
+					</GuessProvider>
 				</div>
 			}>
 				<Match when={gameStore.gameStatus == "waiting" && gameStore.players.length < 2}>

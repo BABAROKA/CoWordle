@@ -1,17 +1,17 @@
 import { createMemo, createSignal, onMount } from "solid-js";
 import { setGameStore, gameStore } from "../store/gameStore";
 import { onCleanup } from "solid-js";
-import type { ClientMessage, ServerMessage, ReadyState, Ready, SendMessage } from "../types";
+import type { ClientMessage, ServerMessage, ReadyState, Ready, SendMessage, WebsocketState } from "../types";
 
-const websockerUrl = import.meta.env.VITE_WEBSOCKET_URL;
-const maxReconnectionAttempts = 2;
-const reconnectionInterval = 500;
+const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
+const MAX_ATTEMPTS = import.meta.env.MAX_RECONNECT_ATTEMPTS;
+const RETRY_INTERVAL = import.meta.env.RETRY_INTERVAL_MILISECONDS;
 
-const createWebsocket = () => {
+const createWebsocket = (): WebsocketState => {
 	const [ws, setWs] = createSignal<WebSocket | null>(null);
 	const [retries, setRetries] = createSignal(0);
 
-	let retryTimeout: number | null = null
+	let retryTimeout: number | null = null;
 	let manualClose = false;
 
 	const connectWebsocket = () => {
@@ -21,7 +21,7 @@ const createWebsocket = () => {
 			return;
 		}
 
-		const newWs = new WebSocket(websockerUrl);
+		const newWs = new WebSocket(WEBSOCKET_URL);
 		setWs(newWs);
 
 		newWs.onopen = () => {
@@ -97,8 +97,7 @@ const createWebsocket = () => {
 			if (manualClose) return;
 
 			const attempts = retries();
-
-			if (attempts >= maxReconnectionAttempts) {
+			if (attempts >= MAX_ATTEMPTS) {
 				// Update Message
 				return;
 			}
@@ -106,7 +105,7 @@ const createWebsocket = () => {
 			setRetries(prev => prev + 1);
 
 			if (retryTimeout != null) clearTimeout(retryTimeout);
-			retryTimeout = setTimeout(() => connectWebsocket(), reconnectionInterval);
+			retryTimeout = setTimeout(connectWebsocket, RETRY_INTERVAL);
 		}
 
 		newWs.onerror = () => {

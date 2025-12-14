@@ -1,7 +1,9 @@
 import "../main.css";
 import { For, type ParentComponent } from "solid-js";
 import { gameStore } from "../store/gameStore";
-
+import { useGuess } from "../context/guessContext";
+import type { ClientMessage } from "../types";
+import { useWebsocket } from "../context/websocketContext";
 
 const qwertyKeyboard = [
 	["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
@@ -34,11 +36,19 @@ const KeyboardRow: ParentComponent = (props) => {
 }
 
 const KeyboardTile = (props: { key: string }) => {
-	const bigKey = props.key.length > 1 || props.key == "⌫";
+
+	const { actions } = useGuess();
+
+	const bigKey = props.key == "Enter" || props.key == "⌫";
 	const state = () => gameStore.keyboardStatus[props.key];
+	const keyFunction = !bigKey ?
+		() => actions.addLetter(props.key) :
+		props.key == "⌫" ?
+			actions.removeLetter :
+			actions.sendGuess;
 
 	const animationColor = () => {
-		const colors: {[key: string]: string} = {
+		const colors: { [key: string]: string } = {
 			"green": "bg-green-800",
 			"yellow": "bg-yellow-600",
 			"gray": "bg-dark-gray",
@@ -49,6 +59,7 @@ const KeyboardTile = (props: { key: string }) => {
 	return (
 		<button
 			type="button"
+			onClick={keyFunction}
 			classList={{
 				"w-16": bigKey,
 				"w-10": !bigKey,

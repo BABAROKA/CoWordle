@@ -1,12 +1,11 @@
 import "../main.css";
-import { For, onCleanup, createSignal, createMemo, createEffect, type ParentComponent, onMount } from "solid-js";
+import { For, onCleanup, createMemo, createEffect, type ParentComponent, onMount } from "solid-js";
 import { gameStore } from "../store/gameStore";
-import { useWebsocket } from "../context/websocketContext";
-import type { ClientMessage, Guess, GameColor } from "../types";
+import type { Guess, GameColor } from "../types";
+import { useGuess } from "../context/guessContext";
 
 const Board = () => {
-	const [currentWord, setCurrentWord] = createSignal("");
-	const [_, sendMessage] = useWebsocket();
+	const {currentGuess, actions} = useGuess();
 
 	const emptyRows = Array.from({ length: 5 }, () => "");
 	const indices = Array.from({ length: 5 });
@@ -22,29 +21,16 @@ const Board = () => {
 		if (gameStore.guesses.length >= 6) {
 			return [];
 		}
-		const currentRow = currentWord();
+		const currentRow = currentGuess();
 		const paddingRows = emptyRows.slice(0, 5 - gameStore.guesses.length);
 		return [currentRow, ...paddingRows];
 	})
 
 	createEffect(() => {
 		if (gameStore.guesses.length > 0) {
-			setCurrentWord("");
+			actions.resetGuess();
 		}
 	})
-
-	const sendGuess = () => {
-		if (!gameStore.playerId || !gameStore.gameId) return;
-
-		const guessMessage: ClientMessage = {
-			action: "guessWord",
-			playerId: gameStore.playerId,
-			gameId: gameStore.gameId,
-			word: currentWord(),
-		}
-
-		sendMessage(guessMessage);
-	}
 
 	const handleKeyPress = (event: KeyboardEvent) => {
 		if (event.repeat) return;
@@ -54,14 +40,14 @@ const Board = () => {
 
 		let uppercaseKey = event.key.toUpperCase();
 
-		if (uppercaseKey.match(/^[A-Z]$/) && currentWord().length < 5) {
-			setCurrentWord(prev => prev + uppercaseKey);
+		if (uppercaseKey.match(/^[A-Z]$/)) {
+			actions.addLetter(uppercaseKey);
 		}
-		if (uppercaseKey == "ENTER" && currentWord().length == 5) {
-			sendGuess();
+		if (uppercaseKey == "ENTER" && currentGuess().length == 5) {
+			actions.sendGuess();
 		}
 		if (uppercaseKey == "BACKSPACE") {
-			if (currentWord().length > 0) setCurrentWord(prev => prev.slice(0, -1));
+			actions.removeLetter();
 		}
 	}
 

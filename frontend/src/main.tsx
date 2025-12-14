@@ -1,7 +1,7 @@
 import { render } from 'solid-js/web';
 import { Router, Route } from "@solidjs/router";
 import { lazy } from 'solid-js';
-import WebsocketProvider from './api/websocketProvider.tsx';
+import WebsocketProvider from './providers/websocketProvider.tsx';
 
 const wrapper = document.getElementById('root');
 if (!wrapper) {
