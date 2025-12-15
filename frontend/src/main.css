@@ -18,6 +18,29 @@
 	--shadow-l: inset 0 1px 2px #ffffff70, 0 4px 6px #00000030, 0 6px 10px #00000015;
 }
 
+@keyframes toast {
+	0% {
+		opacity: 0;
+		transform: translateY(100px);
+	}
+	10% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	90% {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-100px);
+	}
+}
+
+.toast-animation {
+	animation: toast 3s ease-in-out forwards;
+}
+
 @keyframes expand {
 	0% {
 		width: 0px;

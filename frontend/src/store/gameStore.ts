@@ -10,6 +10,7 @@ const initialState: GameStore = {
 	gameStatus: "pending",
 	keyboardStatus: {},
 	players: [],
+	toasts: [],
 };
 
 export const [gameStore, setGameStore] = createStore<GameStore>(initialState);
@@ -22,4 +23,5 @@ export const resetGame = () => setGameStore({
 	gameStatus: "pending",
 	keyboardStatus: {},
 	players: [],
+	toasts: [],
 });

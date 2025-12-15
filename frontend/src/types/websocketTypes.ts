@@ -1,4 +1,4 @@
-import { type ClientMessage } from "./clinetMessage";
+import { type ClientMessage } from "./clientMessage";
 
 export type Ready = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED";
 

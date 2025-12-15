@@ -8,6 +8,7 @@ import { useNavigate } from "@solidjs/router";
 import EndData from "../components/EndData";
 import NavBar from "../components/NavBar";
 import GuessProvider from "../providers/guessProvider";
+import Toast from "../components/Toast";
 
 const Game = () => {
 
@@ -31,7 +32,8 @@ const Game = () => {
 	});
 
 	return (
-		<main class="bg-background-dark h-screen w-full text-center">
+		<main class="relative bg-background-dark h-screen w-full text-center overflow-hidden">
+			<Toast />
 			<NavBar />
 			<Switch fallback={
 				<div class="bg-background-dark w-full h-screen flex flex-col justify-center items-center gap-6">

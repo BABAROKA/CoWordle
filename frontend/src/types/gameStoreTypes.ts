@@ -1,5 +1,6 @@
 import { type Guess } from "./serverMessage";
 
+type Toast = {id: number, message: string};
 
 export interface GameStore {
 	playerId: string | null,
@@ -10,4 +11,5 @@ export interface GameStore {
 	gameStatus: string,
 	keyboardStatus: { [key: string]: string; },
 	players: string[],
+	toasts: Toast[],
 }

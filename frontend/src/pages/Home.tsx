@@ -4,6 +4,7 @@ import { useWebsocket } from "../context/websocketContext";
 import type { ClientMessage } from "../types";
 import { gameStore } from "../store/gameStore";
 import { useNavigate, useSearchParams } from "@solidjs/router";
+import Toast from "../components/Toast";
 
 const Home = () => {
 	const [inputId, setInputId] = createSignal<string>("")
@@ -48,8 +49,9 @@ const Home = () => {
 	}
 
 	return (
-		<main class="bg-background-dark w-full h-screen flex flex-col gap-5 justify-center items-center">
-			<p class="text-4xl font-extrabold text-text" style={{"view-transition-name": "title"}}>CoWordle</p>
+		<main class="relative overflow-hidden bg-background-dark w-full h-screen flex flex-col gap-5 justify-center items-center">
+			<Toast />
+			<p class="text-4xl font-extrabold text-text" style={{ "view-transition-name": "title" }}>CoWordle</p>
 			<div class="p-5 bg-background rounded-xl text-center shadow-s text-text font-bold space-y-2">
 				<button type="button" onClick={createGame} class="bg-background-light hover:bg-green-800 w-full rounded-md cursor-pointer p-2 transition-colors duration-200">Create Game</button>
 				<div class="w-full flex gap-2">

@@ -2,6 +2,7 @@ import { render } from 'solid-js/web';
 import { Router, Route } from "@solidjs/router";
 import { lazy } from 'solid-js';
 import WebsocketProvider from './providers/websocketProvider.tsx';
+import Toast from './components/Toast.tsx';
 
 const wrapper = document.getElementById('root');
 if (!wrapper) {

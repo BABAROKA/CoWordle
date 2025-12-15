@@ -12,7 +12,13 @@ const createWebsocket = (): WebsocketState => {
 	const [retries, setRetries] = createSignal(0);
 
 	let retryTimeout: number | null = null;
+	let messageTimeout: number | null = null;
 	let manualClose = false;
+
+	const addToast = (toast: string) => {
+		const id = Date.now();
+		setGameStore("toasts", toasts => [...toasts, {id, message: toast}].slice(-3));
+	}
 
 	const connectWebsocket = () => {
 		manualClose = false;
@@ -86,6 +92,7 @@ const createWebsocket = (): WebsocketState => {
 					});
 					break;
 				case "error":
+					addToast(data.message);
 					break;
 				default:
 					console.log("^^ invalid data type");
@@ -109,7 +116,6 @@ const createWebsocket = (): WebsocketState => {
 		}
 
 		newWs.onerror = () => {
-			// Update Message
 		}
 	}
 
@@ -127,6 +133,9 @@ const createWebsocket = (): WebsocketState => {
 	onCleanup(() => {
 		if (retryTimeout != null) {
 			clearTimeout(retryTimeout);
+		}
+		if (messageTimeout != null) {
+			clearTimeout(messageTimeout)
 		}
 		manualClose = true;
 		const currentWs = ws();
