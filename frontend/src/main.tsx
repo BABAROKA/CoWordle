@@ -2,7 +2,7 @@ import { render } from 'solid-js/web';
 import { Router, Route } from "@solidjs/router";
 import { lazy } from 'solid-js';
 import WebsocketProvider from './providers/websocketProvider.tsx';
-import Toast from './components/Toast.tsx';
+import Dot from './components/ConnectionDot.tsx';
 
 const wrapper = document.getElementById('root');
 if (!wrapper) {
@@ -14,6 +14,7 @@ const Game = lazy(() => import("./pages/Game.tsx"));
 
 const App = () => (
 	<WebsocketProvider>
+		<Dot />
 		<Router>
 			<Route path="/" component={Home} />
 			<Route path="/game" component={Game} />

@@ -3,21 +3,23 @@ import { setGameStore, gameStore } from "../store/gameStore";
 import { onCleanup } from "solid-js";
 import type { ClientMessage, ServerMessage, ReadyState, Ready, SendMessage, WebsocketState } from "../types";
 
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
-const MAX_ATTEMPTS = import.meta.env.MAX_RECONNECT_ATTEMPTS;
-const RETRY_INTERVAL = import.meta.env.RETRY_INTERVAL_MILISECONDS;
+const WEBSOCKET_URL: string = import.meta.env.VITE_WEBSOCKET_URL;
+const MAX_ATTEMPTS: number = import.meta.env.VITE_MAX_RECONNECT_ATTEMPTS;
+const RETRY_INTERVAL: number = import.meta.env.VITE_RETRY_INTERVAL_MILISECONDS;
 
 const createWebsocket = (): WebsocketState => {
 	const [ws, setWs] = createSignal<WebSocket | null>(null);
 	const [retries, setRetries] = createSignal(0);
+	const [readyState, setReadyState] = createSignal<Ready>("CONNECTING");
 
 	let retryTimeout: number | null = null;
 	let messageTimeout: number | null = null;
 	let manualClose = false;
+	const readyMap: Record<number, Ready> = { 0: "CONNECTING", 1: "OPEN", 2: "CLOSING", 3: "CLOSED" };
 
 	const addToast = (toast: string) => {
 		const id = Date.now();
-		setGameStore("toasts", toasts => [...toasts, {id, message: toast}].slice(-3));
+		setGameStore("toasts", toasts => [...toasts, { id, message: toast }].slice(-3));
 	}
 
 	const connectWebsocket = () => {
@@ -32,6 +34,7 @@ const createWebsocket = (): WebsocketState => {
 
 		newWs.onopen = () => {
 			setRetries(0);
+			setReadyState(readyMap[ws()?.readyState ?? 3]);
 
 			const connectMessage: ClientMessage = {
 				action: "connect",
@@ -43,7 +46,6 @@ const createWebsocket = (): WebsocketState => {
 
 		newWs.onmessage = (event) => {
 			const data: ServerMessage = JSON.parse(event.data);
-			console.log(data);
 
 			switch (data.status) {
 				case "welcome":
@@ -102,26 +104,24 @@ const createWebsocket = (): WebsocketState => {
 		newWs.onclose = () => {
 			setWs(null);
 			if (manualClose) return;
-
 			const attempts = retries();
 			if (attempts >= MAX_ATTEMPTS) {
-				// Update Message
+				setReadyState(readyMap[ws()?.readyState ?? 3]);
+				addToast(`Unable to connect to server`);
 				return;
 			}
-
+			setReadyState("RECONNECTING");
 			setRetries(prev => prev + 1);
 
 			if (retryTimeout != null) clearTimeout(retryTimeout);
 			retryTimeout = setTimeout(connectWebsocket, RETRY_INTERVAL);
-		}
-
-		newWs.onerror = () => {
 		}
 	}
 
 	const sendMessage: SendMessage = (message: ClientMessage) => {
 		const currentWs = ws();
 		if (!currentWs || currentWs.readyState != WebSocket.OPEN) {
+			addToast("Not connected to server");
 			return;
 		}
 		const messageJson = JSON.stringify(message);
@@ -145,10 +145,8 @@ const createWebsocket = (): WebsocketState => {
 		}
 	})
 
-	const readyMap: Record<number, Ready> = { 0: "CONNECTING", 1: "OPEN", 2: "CLOSING", 3: "CLOSED" };
-	const readyState: ReadyState = createMemo(() => readyMap[ws()?.readyState ?? 3])
 
-	return [readyState, sendMessage];
+	return {readyState, sendMessage};
 
 }
 

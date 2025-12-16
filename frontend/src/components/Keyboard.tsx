@@ -2,8 +2,6 @@ import "../main.css";
 import { For, type ParentComponent } from "solid-js";
 import { gameStore } from "../store/gameStore";
 import { useGuess } from "../context/guessContext";
-import type { ClientMessage } from "../types";
-import { useWebsocket } from "../context/websocketContext";
 
 const qwertyKeyboard = [
 	["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],

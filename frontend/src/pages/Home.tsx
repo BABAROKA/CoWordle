@@ -8,7 +8,7 @@ import Toast from "../components/Toast";
 
 const Home = () => {
 	const [inputId, setInputId] = createSignal<string>("")
-	const [_, sendMessage] = useWebsocket();
+	const { sendMessage } = useWebsocket();
 
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();

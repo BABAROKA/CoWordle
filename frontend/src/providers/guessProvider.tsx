@@ -5,7 +5,7 @@ import { gameStore } from "../store/gameStore";
 import type { ClientMessage } from "../types";
 
 const GuessProvider = (props: { children: JSXElement }) => {
-	const [, sendMessage] = useWebsocket();
+	const { sendMessage } = useWebsocket();
 	const [currentGuess, setCurrentGuess] = createSignal("");
 
 	const actions = {

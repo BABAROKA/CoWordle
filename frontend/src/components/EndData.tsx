@@ -5,7 +5,7 @@ import { gameStore, resetGame } from "../store/gameStore";
 import type { ClientMessage } from "../types";
 
 const EndData = () => {
-	const [, sendMessage] = useWebsocket();
+	const { sendMessage } = useWebsocket();
 	const navigate = useNavigate();
 
 	const sendNewGame = () => {
@@ -21,7 +21,7 @@ const EndData = () => {
 		const disconnectMessage: ClientMessage = { action: "disconnectPlayer", playerId: gameStore.playerId, gameId: gameStore.gameId };
 		sendMessage(disconnectMessage);
 		resetGame();
-		navigate("/", {replace: true});
+		navigate("/", { replace: true });
 	}
 
 	return (
