@@ -1,7 +1,7 @@
-import { createMemo, createSignal, onMount } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { setGameStore, gameStore } from "../store/gameStore";
 import { onCleanup } from "solid-js";
-import type { ClientMessage, ServerMessage, ReadyState, Ready, SendMessage, WebsocketState } from "../types";
+import type { ClientMessage, ServerMessage, Ready, SendMessage, WebsocketState } from "../types";
 
 const WEBSOCKET_URL: string = import.meta.env.VITE_WEBSOCKET_URL;
 const MAX_ATTEMPTS: number = import.meta.env.VITE_MAX_RECONNECT_ATTEMPTS;
@@ -38,7 +38,6 @@ const createWebsocket = (): WebsocketState => {
 
 			const connectMessage: ClientMessage = {
 				action: "connect",
-				playerId: gameStore.playerId,
 				gameId: gameStore.gameId
 			}
 			newWs.send(JSON.stringify(connectMessage));
@@ -146,7 +145,7 @@ const createWebsocket = (): WebsocketState => {
 	})
 
 
-	return {readyState, sendMessage};
+	return { readyState, sendMessage };
 
 }
 

@@ -21,7 +21,7 @@
 @keyframes toast {
 	0% {
 		opacity: 0;
-		transform: translateY(100px);
+		transform: translateY(50px);
 	}
 	10% {
 		opacity: 1;
@@ -33,7 +33,7 @@
 	}
 	100% {
 		opacity: 0;
-		transform: translateY(-100px);
+		transform: translateY(-50px);
 	}
 }
 

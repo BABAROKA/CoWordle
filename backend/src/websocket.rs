@@ -1,4 +1,4 @@
-use crate::game::{GameCommand, GameId, PlayerId, ServerMessage};
+use crate::game::{GameCommand, GameId, ServerMessage};
 use axum::extract::ws::{Message, WebSocket};
 use futures::{sink::SinkExt, stream::StreamExt};
 use governor::{Quota, RateLimiter};
@@ -12,36 +12,19 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum ClientMessage {
-    Connect {
-        game_id: Option<GameId>,
-        player_id: Option<PlayerId>,
-    },
-    CreateGame {
-        player_id: PlayerId,
-    },
-    JoinGame {
-        game_id: GameId,
-        player_id: PlayerId,
-    },
-    NewGame {
-        game_id: GameId,
-    },
-    GuessWord {
-        game_id: GameId,
-        player_id: PlayerId,
-        word: String,
-    },
-    DisconnectPlayer {
-        game_id: GameId,
-        player_id: PlayerId,
-    },
+    Connect { game_id: Option<GameId> },
+    JoinGame { game_id: GameId },
+    GuessWord { word: String },
+    CreateGame,
+    NewGame,
+    DisconnectPlayer,
 }
 
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
-    let mut game_id_disconnect: Option<String> = None;
-    let mut player_id_disconnect: Option<String> = None;
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
+    let mut session_game_id: Option<String> = None;
+    let mut session_player_id: Option<String> = None;
 
     let (mut tw, mut rw) = socket.split();
 
@@ -51,90 +34,79 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
     loop {
         tokio::select! {
             Some(msg) = player_rx.recv() => {
-                match &msg {
-                    ServerMessage::PlayerData {game_id, player_id} => {
-                        game_id_disconnect = game_id.clone();
-                        player_id_disconnect = player_id.clone();
-                    }
-                    _ => {
-                        match serde_json::to_string(&msg) {
-                            Ok(message) => {
-                                if let Err(err) = tw.send(Message::Text(message.into())).await {
-                                    error!("Unable to send message to client {err}");
-                                    break;
-                                }
-                            },
-                            Err(err) => {
-                                error!("Failed to serialize message: {:?}", err);
-                                break;
-                            }
-                        }
-                    }
+                if let ServerMessage::Created {game_id, ..} = &msg {
+                    session_game_id = Some(game_id.clone());
+                }
+                let Ok(message) = serde_json::to_string(&msg) else {
+                    error!("Failed to serialize message");
+                    continue;
+                };
+                if let Err(err) = tw.send(Message::Text(message.into())).await {
+                    error!("Unable to send message to client {err}");
                 }
             }
 
             Some(Ok(msg)) = rw.next() => {
                 match msg {
                     Message::Text(text) => {
-                        if let Err(_) = limit.check() {
-                            let error_message = serde_json::to_string(&ServerMessage::Error {
-                                message: "Rate limit reached wait".to_string(),
-                            });
-                            if let Ok(message) = error_message {
-                                if let Err(_) = tw.send(Message::Text(message.into())).await {
-                                    error!("Error sending rate limite messgae");
-                                }
+                        if limit.check().is_err() {
+                            if let Err(_) = tw.send(Message::Text("{\"status\":\"error\",\"message\":\"Rate limit reached\"}".into())).await {
+                                error!("Error sending rate limite messgae");
                             }
                             continue;
                         }
-                        match serde_json::from_str::<ClientMessage>(&text.to_string()) {
-                            Ok(request) => {
-                                let command: GameCommand = match request {
-                                    ClientMessage::Connect {game_id, player_id} => {
-                                        if let Some(gid) = game_id && let Some(pid) = player_id {
-                                            GameCommand::Join { game_id: gid, player_id: pid, reply_sender: player_tx.clone()}
-                                        } else {
-                                            let generated_player_id = format!("User-{}", Uuid::new_v4().to_string());
+                        let Ok(request) = serde_json::from_str::<ClientMessage>(&text.to_string()) else {continue;};
 
-                                            info!("player connected {}", &generated_player_id);
-                                            let welcome_message = serde_json::to_string(&ServerMessage::Welcome {
-                                                player_id: generated_player_id.clone(),
-                                                message: "Welcome new player".to_string(),
-                                            });
-                                            if let Ok(message) = welcome_message {
-                                                if tw.send(Message::Text(message.into())).await.is_err() {
-                                                    error!("Unable to send welcome message");
-                                                }
-                                            }
-                                            continue;
-                                        }
-                                    },
-                                    ClientMessage::CreateGame {player_id} => {
-                                        GameCommand::Create { player_id: player_id, reply_sender: player_tx.clone()}
-                                    },
-                                    ClientMessage::JoinGame {player_id, game_id} => {
-                                        GameCommand::Join { game_id: game_id, player_id: player_id, reply_sender: player_tx.clone()}
-                                    },
-                                    ClientMessage::NewGame {game_id} => {
-                                        GameCommand::New { game_id: game_id, reply_sender: player_tx.clone()}
-                                    },
-                                    ClientMessage::GuessWord {player_id, game_id, word} => {
-                                        GameCommand::Guess { game_id: game_id, player_id: player_id, word: word, reply_sender: player_tx.clone()}
-                                    },
-                                    ClientMessage::DisconnectPlayer {player_id, game_id} => {
-                                        GameCommand::Disconnect { game_id: game_id, player_id: player_id, }
-                                    }
-                                };
+                        if let ClientMessage::Connect {game_id} = &request {
+                            let new_player_id = format!("User-{}", Uuid::new_v4().to_string());
 
-                                if let Err(err) = tx.send(command).await {
-                                    error!("Unable to send message to game coordinator {err}");
-                                    break;
+                            session_player_id = Some(new_player_id.clone());
+                            session_game_id = game_id.clone();
+
+                            info!("player connected {}", &new_player_id);
+                            let welcome_message = serde_json::to_string(&ServerMessage::Welcome {
+                                player_id: new_player_id.clone(),
+                                message: "Welcome new player".to_string(),
+                            });
+                            if let Ok(message) = welcome_message {
+                                if tw.send(Message::Text(message.into())).await.is_err() {
+                                    error!("Unable to send welcome message");
                                 }
                             }
-                            Err(err) => {
-                                error!("Failed to serialize message: {:?}", err);
+
+                            let Some(id) = game_id else {continue};
+                            if let Err(err) = tx.send(GameCommand::Join { game_id: id.clone(), player_id: new_player_id, reply_sender: player_tx.clone()}).await {
+                                error!("Unable to send message to game coordinator {err}");
                                 break;
                             }
+                            continue;
+                        }
+
+                        let command = match (request, session_player_id.clone(), session_game_id.clone()) {
+                            (ClientMessage::Connect {..}, _, _) => unreachable!(),
+                            (ClientMessage::CreateGame, Some(pid), _) => {
+                                GameCommand::Create { player_id: pid, reply_sender: player_tx.clone()}
+                            },
+                            (ClientMessage::JoinGame { game_id }, Some(pid), _) => {
+                                session_game_id = Some(game_id.clone());
+                                GameCommand::Join { game_id: game_id, player_id: pid, reply_sender: player_tx.clone()}
+                            },
+                            (ClientMessage::NewGame, _, Some(gid)) => {
+                                GameCommand::New { game_id: gid, reply_sender: player_tx.clone()}
+                            },
+                            (ClientMessage::GuessWord { word }, Some(pid), Some(gid)) => {
+
+                                GameCommand::Guess { game_id: gid, player_id: pid, word: word.clone(), reply_sender: player_tx.clone()}
+                            },
+                            (ClientMessage::DisconnectPlayer, Some(pid), Some(gid)) => {
+                                GameCommand::Disconnect { game_id: gid, player_id: pid, }
+                            },
+                            _ => {continue}
+                        };
+
+                        if let Err(err) = tx.send(command).await {
+                            error!("Unable to send message to game coordinator {err}");
+                            break;
                         }
                     },
                     Message::Close(frame) => {
@@ -149,17 +121,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
         }
     }
 
-    match (game_id_disconnect, player_id_disconnect) {
-        (Some(gid), Some(pid)) => {
-            let command = GameCommand::Disconnect {
-                game_id: gid,
-                player_id: pid,
-            };
-
-            if let Err(err) = tx.send(command).await {
-                error!("Unable to send message to game coordinator {err}");
-            }
-        }
-        _ => {}
+    if let (Some(player_id), Some(game_id)) = (session_player_id.clone(), session_game_id.clone()) {
+        let _ = tx.send(GameCommand::Disconnect { game_id, player_id }).await;
     }
 }

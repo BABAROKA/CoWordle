@@ -34,7 +34,7 @@ const Home = () => {
 			return;
 		}
 
-		const createMessage: ClientMessage = { action: "createGame", playerId: gameStore.playerId };
+		const createMessage: ClientMessage = { action: "createGame" };
 		sendMessage(createMessage);
 	}
 
@@ -44,7 +44,7 @@ const Home = () => {
 			return;
 		}
 
-		const joinMessage: ClientMessage = { action: "joinGame", gameId: trueId, playerId: gameStore.playerId };
+		const joinMessage: ClientMessage = { action: "joinGame", gameId: trueId };
 		sendMessage(joinMessage);
 	}
 

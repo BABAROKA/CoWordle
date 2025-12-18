@@ -10,7 +10,7 @@ const EndData = () => {
 
 	const sendNewGame = () => {
 		if (!gameStore.gameId) return;
-		const newGameMessage: ClientMessage = { action: "newGame", gameId: gameStore.gameId }
+		const newGameMessage: ClientMessage = { action: "newGame" };
 		sendMessage(newGameMessage);
 	}
 
@@ -18,7 +18,7 @@ const EndData = () => {
 		if (!gameStore.playerId || !gameStore.gameId) {
 			return;
 		}
-		const disconnectMessage: ClientMessage = { action: "disconnectPlayer", playerId: gameStore.playerId, gameId: gameStore.gameId };
+		const disconnectMessage: ClientMessage = { action: "disconnectPlayer" };
 		sendMessage(disconnectMessage);
 		resetGame();
 		navigate("/", { replace: true });

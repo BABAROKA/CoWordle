@@ -23,8 +23,6 @@ const GuessProvider = (props: { children: JSXElement }) => {
 
 			const guessMessage: ClientMessage = {
 				action: "guessWord",
-				playerId: gameStore.playerId,
-				gameId: gameStore.gameId,
 				word: currentGuess(),
 			}
 

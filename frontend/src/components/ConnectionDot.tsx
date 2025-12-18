@@ -1,11 +1,7 @@
-import { createEffect } from "solid-js";
 import { useWebsocket } from "../context/websocketContext";
 
 const Dot = () => {
 	const { readyState } = useWebsocket();
-	createEffect(() => {
-		console.log(readyState());
-	})
 	return (
 		<span class="absolute flex size-3 top-5 right-5 z-30">
 			<span

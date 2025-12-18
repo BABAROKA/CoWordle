@@ -1,8 +1,7 @@
 export type ClientMessage =
-	| { action: "createGame", playerId: string }
-	| { action: "joinGame", playerId: string, gameId: string }
-	| { action: "guessWord", playerId: string, gameId: string, word: string }
-	| { action: "newGame", gameId: string }
-	| { action: "connect", gameId: string | null, playerId: string | null }
-	| { action: "disconnectPlayer", playerId: string, gameId: string };
-
+	| { action: "connect", gameId: string | null}
+	| { action: "joinGame", gameId: string }
+	| { action: "guessWord", word: string }
+	| { action: "createGame" }
+	| { action: "newGame"}
+	| { action: "disconnectPlayer"};

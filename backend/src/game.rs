@@ -46,10 +46,6 @@ pub enum ServerMessage {
     Exited {
         board_state: BoardState,
     },
-    PlayerData {
-        game_id: Option<GameId>,
-        player_id: Option<PlayerId>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -320,14 +316,6 @@ impl Game {
             solution: solution_word,
         };
         Self::broadcast_message(self, join_message).await;
-
-        let data_message = ServerMessage::PlayerData {
-            game_id: Some(game_id),
-            player_id: Some(player_id),
-        };
-        if let Err(err) = sender.send(data_message).await {
-            error!("Failed to send PlayerData to new player: {err}");
-        }
         Ok(())
     }
 
@@ -507,15 +495,6 @@ impl GameCoordinator {
         tokio::spawn(async move {
             game.run().await;
         });
-
-        let data_message = ServerMessage::PlayerData {
-            game_id: Some(game_id.clone()),
-            player_id: Some(player_id),
-        };
-        if let Err(err) = player_sender.send(data_message).await {
-            error!("Failed to send PlayerData to new player: {err}");
-            return;
-        }
 
         let create_message = ServerMessage::Created {
             game_status: GameStatus::Waiting,

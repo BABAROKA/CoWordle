@@ -12,7 +12,7 @@ const Toast = () => {
 							"margin-bottom": `${(lastIndex() - index())}em`,
 							"scale": `${100 - (lastIndex() - index()) * 10}%`
 						}}
-						class="toast-animation absolute bottom-5 right-5 min-w-60 w-auto px-5 h-14 text-nowrap text-text text-xl flex justify-center items-center bg-background shadow-m rounded-lg transition-all duration-300"
+						class="toast-animation absolute bottom-3 right-3 w-60 p-4 h-14 text-text text-center font-extrabold text-md flex justify-center items-center bg-background shadow-m rounded-lg transition-all duration-300"
 						onAnimationEnd={
 							() => setGameStore("toasts", toasts => toasts.filter(t => t.id != toast.id))
 						}
