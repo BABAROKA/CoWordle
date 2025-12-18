@@ -40,11 +40,17 @@ const createWebsocket = (): WebsocketState => {
 				action: "connect",
 				gameId: gameStore.gameId
 			}
-			newWs.send(JSON.stringify(connectMessage));
+			sendMessage(connectMessage);
 		};
 
 		newWs.onmessage = (event) => {
-			const data: ServerMessage = JSON.parse(event.data);
+			let data: ServerMessage;
+			try {
+				data = JSON.parse(event.data);
+			} catch (e) {
+				console.log(e);
+				return;
+			}
 
 			switch (data.status) {
 				case "welcome":
@@ -64,15 +70,6 @@ const createWebsocket = (): WebsocketState => {
 						solution: data.solution,
 					});
 					break;
-				case "newGame":
-					setGameStore({
-						currentTurn: data.boardState.currentTurn,
-						guesses: data.boardState.guesses,
-						gameStatus: data.boardState.gameStatus,
-						keyboardStatus: data.boardState.keyboardStatus,
-						players: data.boardState.players,
-					});
-					break;
 				case "gameUpdate":
 					setGameStore({
 						currentTurn: data.boardState.currentTurn,
@@ -83,6 +80,10 @@ const createWebsocket = (): WebsocketState => {
 						players: data.boardState.players,
 					});
 					break;
+				case "error":
+					addToast(data.error.message);
+					break;
+				case "newGame":
 				case "exited":
 					setGameStore({
 						currentTurn: data.boardState.currentTurn,
@@ -91,9 +92,6 @@ const createWebsocket = (): WebsocketState => {
 						keyboardStatus: data.boardState.keyboardStatus,
 						players: data.boardState.players,
 					});
-					break;
-				case "error":
-					addToast(data.message);
 					break;
 				default:
 					console.log("^^ invalid data type");
@@ -123,8 +121,12 @@ const createWebsocket = (): WebsocketState => {
 			addToast("Not connected to server");
 			return;
 		}
-		const messageJson = JSON.stringify(message);
-		currentWs.send(messageJson);
+		try {
+			const messageJson = JSON.stringify(message);
+			currentWs.send(messageJson);
+		} catch (e) {
+			console.log(e);
+		}
 	}
 
 	onMount(() => connectWebsocket())

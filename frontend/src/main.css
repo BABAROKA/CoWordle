@@ -18,6 +18,20 @@
 	--shadow-l: inset 0 1px 2px #ffffff70, 0 4px 6px #00000030, 0 6px 10px #00000015;
 }
 
+@keyframes pop {
+	0%, 100% {
+		transform: scale(1);
+	}
+
+	50% {
+		transform: scale(1.05);
+	}
+}
+
+.pop-animtion {
+	animation: pop 200ms ease-in-out forwards;
+}
+
 @keyframes toast {
 	0% {
 		opacity: 0;

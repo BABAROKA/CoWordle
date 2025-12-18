@@ -50,7 +50,15 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                 match msg {
                     Message::Text(text) => {
                         if limit.check().is_err() {
-                            if let Err(_) = tw.send(Message::Text("{\"status\":\"error\",\"message\":\"Rate limit reached\"}".into())).await {
+                            let error_message = serde_json::json!({
+                                "status": "error",
+                                "error": {
+                                    "type": "rateLimitError",
+                                    "message": "Rate limit reached"
+                                }
+                            }).to_string();
+
+                            if let Err(_) = tw.send(Message::Text(error_message.into())).await {
                                 error!("Error sending rate limite messgae");
                             }
                             continue;

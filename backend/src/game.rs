@@ -11,10 +11,12 @@ pub type CommandSender = mpsc::Sender<GameCommand>;
 
 const MAX_GUESSES: usize = 6;
 
-enum GameError {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum GameError {
     StopGame,
-    JoinError(String),
-    GuessError(String),
+    JoinError { message: String },
+    GuessError { message: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,7 +43,7 @@ pub enum ServerMessage {
         message: String,
     },
     Error {
-        message: String,
+        error: GameError,
     },
     Exited {
         board_state: BoardState,
@@ -194,15 +196,13 @@ impl Game {
     async fn run(&mut self) {
         while let Some(cmd) = self.rx.recv().await {
             if let Err(error) = self.process_command(cmd.clone()).await {
-                match error {
-                    GameError::StopGame => break,
-                    GameError::JoinError(err) | GameError::GuessError(err) => {
-                        let error_message = ServerMessage::Error { message: err };
-                        if let Some(reply_sender) = cmd.get_reply_sender() {
-                            if let Err(err) = reply_sender.send(error_message).await {
-                                error!("{err}");
-                            }
-                        }
+                if let GameError::StopGame = error {
+                    break;
+                }
+                let error_message = ServerMessage::Error { error };
+                if let Some(reply_sender) = cmd.get_reply_sender() {
+                    if let Err(err) = reply_sender.send(error_message).await {
+                        error!("{err}");
                     }
                 }
             }
@@ -295,7 +295,9 @@ impl Game {
         sender: PlayerSender,
     ) -> Result<(), GameError> {
         if self.player_senders.len() > 1 {
-            return Err(GameError::JoinError("Already two players in this game".to_string()));
+            return Err(GameError::JoinError {
+                message: "Already two players in this game".to_string(),
+            });
         }
 
         self.player_senders.insert(player_id.clone(), sender.clone());
@@ -332,19 +334,27 @@ impl Game {
             return Err(GameError::StopGame);
         }
         if self.has_ended() {
-            return Err(GameError::GuessError("Game has ended, play again or exit".to_string()));
+            return Err(GameError::GuessError {
+                message: "Game has ended, play again or exit".to_string(),
+            });
         }
 
         let mut solution = None;
 
         if self.board_state.current_turn != player_id {
-            return Err(GameError::GuessError("Not your turn to guess".to_string()));
+            return Err(GameError::GuessError {
+                message: "Not your turn to guess".to_string(),
+            });
         }
         if !dict::valid_guess(&word) {
-            return Err(GameError::GuessError("Not a valid word".to_string()));
+            return Err(GameError::GuessError {
+                message: "Not a valid word".to_string(),
+            });
         }
         if word.len() != 5 {
-            return Err(GameError::GuessError("Word should be 5 letters long".to_string()));
+            return Err(GameError::GuessError {
+                message: "Word should be 5 letters long".to_string(),
+            });
         }
         let guess = self.check_guess(word);
         self.board_state.guesses.push(guess.clone());
@@ -476,7 +486,7 @@ impl GameCoordinator {
         }
         if let Some(reply_sender) = command.get_reply_sender() {
             let error_message = ServerMessage::Error {
-                message: "Game doesnt exist".to_string(),
+                error : GameError::JoinError { message: "Game doesnt exist".to_string() }
             };
             if let Err(err) = reply_sender.send(error_message).await {
                 error!("{err}");

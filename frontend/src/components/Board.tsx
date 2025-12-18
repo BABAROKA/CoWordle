@@ -5,7 +5,7 @@ import type { Guess, GameColor } from "../types";
 import { useGuess } from "../context/guessContext";
 
 const Board = () => {
-	const {currentGuess, actions} = useGuess();
+	const { currentGuess, actions } = useGuess();
 
 	const emptyRows = Array.from({ length: 5 }, () => "");
 	const indices = Array.from({ length: 5 });
@@ -72,6 +72,7 @@ const Board = () => {
 										state={guess.status[charIndex()]}
 										index={charIndex()}
 										flip={shouldFlip}
+										pop={false}
 									/>
 								}
 							</For>
@@ -80,17 +81,21 @@ const Board = () => {
 				}}
 			</For>
 			<For each={dynamicRows()}>
-				{(word) =>
+				{(word, index) =>
 					<BoardRow flip={false}>
 						<For each={indices}>
-							{(_, charIndex) =>
-								<BoardTile
+							{(_, charIndex) => {
+								const currentLetter = currentGuess().length - 1 == charIndex();
+								const currentRow = index() == Math.max(0, gameStore.guesses.length - 1);
+
+								return (<BoardTile
 									letter={word[charIndex()]}
 									state={"default"}
 									index={charIndex()}
 									flip={false}
-								/>
-							}
+									pop={currentLetter && currentRow}
+								/>)
+							}}
 						</For>
 					</BoardRow>}
 			</For>
@@ -110,7 +115,15 @@ const BoardRow: ParentComponent<{ flip: boolean }> = (props) => {
 	)
 }
 
-const BoardTile = (props: { letter: string, state: GameColor | "default", index: number, flip: boolean }) => {
+interface TileProps {
+	letter: string,
+	state: GameColor | "default",
+	index: number,
+	flip: boolean,
+	pop: boolean,
+}
+
+const BoardTile = (props: TileProps) => {
 
 	const color: Record<GameColor | "default", { tailwind: string, value: string }> = {
 		green: { tailwind: "bg-green-800 border-green-800", value: "#016630" },
@@ -122,6 +135,9 @@ const BoardTile = (props: { letter: string, state: GameColor | "default", index:
 
 	return (
 		<div
+			classList={{
+				"pop-animtion": props.pop,
+			}}
 			style={{ "--i": props.index, "--tileColor": data.value }}
 		>
 			<div

@@ -15,11 +15,16 @@ interface BoardState {
 	players: string[],
 };
 
+interface Error {
+	type: "joinError" | "guessError" | "rateLimitError",
+	message: string,
+}
+
 export type ServerMessage =
 	| { status: 'created', gameStatus: GameStatus, gameId: string, }
 	| { status: 'joined', boardState: BoardState, gameId: string, solution: string | null, }
 	| { status: 'gameUpdate', boardState: BoardState, solution: string | null, }
 	| { status: 'newGame', boardState: BoardState }
 	| { status: 'welcome', playerId: string, message: string }
-	| { status: 'error', message: string }
+	| { status: 'error', error: Error }
 	| { status: "exited", boardState: BoardState };
