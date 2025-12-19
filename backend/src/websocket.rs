@@ -93,7 +93,6 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                         let command = match (request, session_player_id.clone(), session_game_id.clone()) {
                             (ClientMessage::Connect {..}, _, _) => unreachable!(),
                             (ClientMessage::CreateGame, Some(pid), _) => {
-                                info!("{session_player_id:?}");
                                 GameCommand::Create { player_id: pid, reply_sender: player_tx.clone()}
                             },
                             (ClientMessage::JoinGame { game_id }, Some(pid), _) => {

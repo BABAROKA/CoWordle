@@ -1,5 +1,5 @@
 import { createSignal, onMount } from "solid-js";
-import { setGameStore, gameStore } from "../store/gameStore";
+import { setGameStore, gameStore, resetGame } from "../store/gameStore";
 import { onCleanup } from "solid-js";
 import type { ClientMessage, ServerMessage, Ready, SendMessage, WebsocketState, Error } from "../types";
 
@@ -50,7 +50,6 @@ const createWebsocket = (): WebsocketState => {
 				console.log(e);
 				return;
 			}
-			console.log(data);
 
 			switch (data.status) {
 				case "welcome":
@@ -81,6 +80,9 @@ const createWebsocket = (): WebsocketState => {
 					});
 					break;
 				case "error":
+					if (data.error.type == "joinError") {
+						resetGame();
+					}
 					addToast(data.error);
 					break;
 				case "newGame":
@@ -144,7 +146,6 @@ const createWebsocket = (): WebsocketState => {
 			setWs(null);
 		}
 	})
-
 
 	return { readyState, sendMessage };
 
