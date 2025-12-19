@@ -1,6 +1,9 @@
-import { type Guess } from "./serverMessage";
+import type { Guess, Error, GameState, KeyColor } from "./serverMessage";
 
-type Toast = {id: number, message: string};
+interface Toast {
+	id: number,
+	error: Error
+};
 
 export interface GameStore {
 	playerId: string | null,
@@ -8,8 +11,8 @@ export interface GameStore {
 	solution: string | null,
 	currentTurn: string,
 	guesses: Guess[],
-	gameStatus: string,
-	keyboardStatus: { [key: string]: string; },
+	gameStatus: GameState,
+	keyboardStatus: { [key: string]: KeyColor; },
 	players: string[],
 	toasts: Toast[],
 }

@@ -66,7 +66,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                         let Ok(request) = serde_json::from_str::<ClientMessage>(&text.to_string()) else {continue;};
 
                         if let ClientMessage::Connect {game_id} = &request {
-                            let new_player_id = format!("User-{}", Uuid::new_v4().to_string());
+                            let new_player_id = Uuid::new_v4().to_string();
 
                             session_player_id = Some(new_player_id.clone());
                             session_game_id = game_id.clone();
@@ -93,6 +93,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                         let command = match (request, session_player_id.clone(), session_game_id.clone()) {
                             (ClientMessage::Connect {..}, _, _) => unreachable!(),
                             (ClientMessage::CreateGame, Some(pid), _) => {
+                                info!("{session_player_id:?}");
                                 GameCommand::Create { player_id: pid, reply_sender: player_tx.clone()}
                             },
                             (ClientMessage::JoinGame { game_id }, Some(pid), _) => {

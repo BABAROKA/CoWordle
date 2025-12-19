@@ -43,7 +43,9 @@ const KeyboardTile = (props: { key: string }) => {
 		() => actions.addLetter(props.key) :
 		props.key == "⌫" ?
 			actions.removeLetter :
-			actions.sendGuess;
+			() => {
+				actions.sendGuess;
+			}
 
 	const animationColor = () => {
 		const colors: { [key: string]: string } = {
@@ -59,11 +61,12 @@ const KeyboardTile = (props: { key: string }) => {
 			type="button"
 			onClick={keyFunction}
 			classList={{
-				"w-16": bigKey,
+				"w-18": bigKey,
 				"w-10": !bigKey,
-				[animationColor()]: true
+				[animationColor()]: true,
 			}}
-			class="cursor-pointer h-13 flex justify-center items-center text-xl rounded-md shadow-s transition-colors delay-[1.7s]"
+			class="cursor-pointer h-12 flex justify-center items-center text-xl font-extrabold rounded-sm transition-colors delay-[1.4s]"
+			disabled={gameStore.gameStatus != "inProgress"}
 		>
 			{props.key}
 		</button>

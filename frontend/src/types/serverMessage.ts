@@ -1,27 +1,26 @@
-export type GameColor = 'gray' | 'yellow' | 'green';
-
-type GameStatus = 'waiting' | 'inProgress' | 'won' | 'lost' | "pending";
+export type KeyColor = 'gray' | 'yellow' | 'green';
+export type GameState = 'waiting' | 'inProgress' | 'won' | 'lost' | "pending";
 
 export interface Guess {
 	word: string,
-	status: GameColor[],
+	status: KeyColor[],
 }
 
 interface BoardState {
 	guesses: Guess[],
 	currentTurn: string,
-	gameStatus: GameStatus,
-	keyboardStatus: { [key: string]: GameColor },
+	gameStatus: GameState,
+	keyboardStatus: { [key: string]: KeyColor },
 	players: string[],
 };
 
-interface Error {
+export interface Error {
 	type: "joinError" | "guessError" | "rateLimitError",
 	message: string,
 }
 
 export type ServerMessage =
-	| { status: 'created', gameStatus: GameStatus, gameId: string, }
+	| { status: 'created', gameStatus: GameState, gameId: string, }
 	| { status: 'joined', boardState: BoardState, gameId: string, solution: string | null, }
 	| { status: 'gameUpdate', boardState: BoardState, solution: string | null, }
 	| { status: 'newGame', boardState: BoardState }

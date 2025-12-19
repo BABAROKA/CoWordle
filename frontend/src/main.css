@@ -5,8 +5,8 @@
 	--color-background: oklch(0.25 0 0);
 	--color-background-light: oklch(0.3 0 0);
 
-	--color-dark-gray: oklch(0.4 0 0);
-	--color-light-gray: oklch(0.7 0 0);
+	--color-dark-gray: oklch(0.35 0 0);
+	--color-light-gray: oklch(0.6 0 0);
 
 	--color-text: oklch(0.95 0 0);
 	--color-text-muted: oklch(0.6 0 0);
@@ -35,13 +35,13 @@
 @keyframes toast {
 	0% {
 		opacity: 0;
-		transform: translateY(50px);
+		transform: translateY(-50px);
 	}
-	10% {
+	20% {
 		opacity: 1;
 		transform: translateY(0);
 	}
-	90% {
+	80% {
 		opacity: 1;
 		transform: translateY(0);
 	}
@@ -52,7 +52,7 @@
 }
 
 .toast-animation {
-	animation: toast 3s ease-in-out forwards;
+	animation: toast 1.2s ease-in-out forwards;
 }
 
 @keyframes expand {
@@ -111,11 +111,11 @@
 }
 
 .wordle-flip>* {
-	animation: tile-flip 700ms ease-in-out calc(var(--i) * 200ms) forwards;
+	animation: tile-flip 550ms ease-in-out calc(var(--i) * 200ms) forwards;
 }
 
 .wordle-flip>*>div {
-	animation: tile-color 350ms ease calc(var(--i) * 200ms + 350ms) forwards;
+	animation: tile-color 275ms ease calc(var(--i) * 200ms + 350ms) forwards;
 }
 
 @keyframes tile-pop {

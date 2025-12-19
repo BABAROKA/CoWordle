@@ -9,15 +9,16 @@ const Toast = () => {
 				return (
 					<div
 						style={{
-							"margin-bottom": `${(lastIndex() - index())}em`,
-							"scale": `${100 - (lastIndex() - index()) * 10}%`
+							"margin-top": `${(lastIndex() - index())}em`,
+							"scale": `${100 - (lastIndex() - index()) * 10}%`,
+							"right": "calc(50% - 120px)",
 						}}
-						class="toast-animation absolute bottom-3 right-3 w-60 p-4 h-14 text-text text-center font-extrabold text-md flex justify-center items-center bg-background shadow-s rounded-lg transition-all duration-300"
+						class="toast-animation absolute top-12 right-3 w-60 p-4 h-14 text-text text-center font-extrabold text-md flex justify-center items-center bg-background rounded-lg transition-all duration-300 z-20 shadow-s"
 						onAnimationEnd={
 							() => setGameStore("toasts", toasts => toasts.filter(t => t.id != toast.id))
 						}
 					>
-						{toast.message}
+						{toast.error.message}
 					</div>
 				)
 			}}

@@ -1,6 +1,6 @@
 import "../main.css";
 import { gameStore } from "../store/gameStore";
-import { createEffect, createSignal, Match, Switch } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import JoinData from "../components/JoinData";
 import Board from "../components/Board";
 import Keyboard from "../components/Keyboard";
@@ -35,21 +35,20 @@ const Game = () => {
 		<main class="relative bg-background-dark h-screen w-full text-center overflow-hidden">
 			<Toast />
 			<NavBar />
-			<Switch fallback={
+			<Show when={gameStore.gameStatus != "waiting" && gameStore.players.length == 2} fallback={
+				<JoinData />
+
+			}>
 				<div class="bg-background-dark w-full h-screen flex flex-col justify-center items-center gap-6">
+					<Show when={showEnd()}>
+						<EndData />
+					</Show>
 					<GuessProvider>
 						<Board />
 						<Keyboard />
 					</GuessProvider>
 				</div>
-			}>
-				<Match when={gameStore.gameStatus == "waiting" && gameStore.players.length < 2}>
-					<JoinData />
-				</Match>
-				<Match when={showEnd()}>
-					<EndData />
-				</Match>
-			</Switch>
+			</Show>
 		</main>
 	)
 }

@@ -27,7 +27,7 @@ const Board = () => {
 	})
 
 	createEffect(() => {
-		if (gameStore.guesses.length > 0) {
+		if (gameStore.guesses.length <= 6) {
 			actions.resetGuess();
 		}
 	})
@@ -128,8 +128,8 @@ const BoardTile = (props: TileProps) => {
 	const color: Record<GameColor | "default", { tailwind: string, value: string }> = {
 		green: { tailwind: "bg-green-800 border-green-800", value: "#016630" },
 		yellow: { tailwind: "bg-yellow-600 border-yellow-600", value: "#d08700" },
-		gray: { tailwind: "bg-dark-gray border-dark-gray", value: "#484848" },
-		default: { tailwind: "border-light-gray", value: "#9e9e9e" },
+		gray: { tailwind: "bg-dark-gray border-dark-gray", value: "#3a3a3a" },
+		default: { tailwind: "border-light-gray", value: "#808080" },
 	};
 	const data = color[props.state] ?? color.default;
 
@@ -141,7 +141,7 @@ const BoardTile = (props: TileProps) => {
 			style={{ "--i": props.index, "--tileColor": data.value }}
 		>
 			<div
-				class="size-16 border-2 flex justify-center items-center text-3xl font-bold rounded-md shadow-s"
+				class="size-16 border-2 flex justify-center items-center text-3xl font-bold rounded-sm"
 				classList={{
 					"border-light-gray": props.flip,
 					[data.tailwind]: !props.flip,

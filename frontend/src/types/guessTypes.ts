@@ -1,10 +1,13 @@
 import type { Accessor } from "solid-js";
 
-type GuessActions = {
+interface GuessActions {
 	addLetter: (key: string) => void;
 	removeLetter: () => void;
 	resetGuess: () => void;
 	sendGuess: () => void;
 }
 
-export type GuessState = {currentGuess: Accessor<string>, actions: GuessActions};
+export interface GuessState {
+	currentGuess: Accessor<string>,
+	actions: GuessActions
+};

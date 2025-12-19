@@ -10,10 +10,14 @@ const GuessProvider = (props: { children: JSXElement }) => {
 
 	const actions = {
 		addLetter(key: string) {
-			if (currentGuess().length < 5) setCurrentGuess(prev => prev + key.toUpperCase());
+			if (currentGuess().length < 5 || gameStore.playerId == gameStore.currentTurn) {
+				setCurrentGuess(prev => prev + key.toUpperCase());
+			}
 		},
 		removeLetter() {
-			if (currentGuess().length > 0) setCurrentGuess(prev => prev.slice(0, -1));
+			if (currentGuess().length > 0 || gameStore.playerId == gameStore.currentTurn) {
+				setCurrentGuess(prev => prev.slice(0, -1));
+			}
 		},
 		resetGuess() {
 			setCurrentGuess("");

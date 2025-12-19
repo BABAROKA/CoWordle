@@ -2,14 +2,14 @@ mod dict;
 mod game;
 mod websocket;
 
-use game::CommandSender;
 use axum::{
     self, Router,
     extract::{FromRequestParts, State, WebSocketUpgrade},
-    http::{StatusCode, header::ORIGIN, request::Parts},
+    http::{StatusCode, header::{FORWARDED, ORIGIN}, request::Parts},
     response::IntoResponse,
     routing::get,
 };
+use game::CommandSender;
 use game::GameCoordinator;
 use std::env;
 use tokio::{net::TcpListener, signal};
@@ -45,6 +45,10 @@ impl FromRequestParts<AppState> for ValidOrigin {
                 }
             }
         }
+        if let Some(forwarded_header) = parts.headers.get(FORWARDED) {
+            let Ok(forwarded) = forwarded_header.to_str() else {return Err(InvalidOrigin)};
+            info!(forwarded);
+        }
         Err(InvalidOrigin)
     }
 }
@@ -68,7 +72,7 @@ async fn main() {
         }
     };
 
-    let allowed_origins: Vec<String>= origins
+    let allowed_origins: Vec<String> = origins
         .split(",")
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
@@ -77,10 +81,7 @@ async fn main() {
 
     let (tx, game_coordinator) = GameCoordinator::new();
 
-    let state = AppState {
-        tx,
-        allowed_origins
-    };
+    let state = AppState { tx, allowed_origins };
 
     tracing::info!("Starting Game Server");
     tokio::spawn(game_coordinator.run());
@@ -93,12 +94,13 @@ async fn main() {
     let app = {
         #[cfg(not(debug_assertions))]
         {
-            use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
+            use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor};
 
             tracing::info!("Rate limiting enabled (RELEASE)");
             let config = GovernorConfigBuilder::default()
                 .per_second(5)
                 .burst_size(10)
+                .key_extractor(SmartIpKeyExtractor)
                 .finish()
                 .unwrap();
             app.layer(GovernorLayer::new(config))

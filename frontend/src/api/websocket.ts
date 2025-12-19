@@ -1,7 +1,7 @@
 import { createSignal, onMount } from "solid-js";
 import { setGameStore, gameStore } from "../store/gameStore";
 import { onCleanup } from "solid-js";
-import type { ClientMessage, ServerMessage, Ready, SendMessage, WebsocketState } from "../types";
+import type { ClientMessage, ServerMessage, Ready, SendMessage, WebsocketState, Error } from "../types";
 
 const WEBSOCKET_URL: string = import.meta.env.VITE_WEBSOCKET_URL;
 const MAX_ATTEMPTS: number = import.meta.env.VITE_MAX_RECONNECT_ATTEMPTS;
@@ -13,13 +13,12 @@ const createWebsocket = (): WebsocketState => {
 	const [readyState, setReadyState] = createSignal<Ready>("CONNECTING");
 
 	let retryTimeout: number | null = null;
-	let messageTimeout: number | null = null;
 	let manualClose = false;
 	const readyMap: Record<number, Ready> = { 0: "CONNECTING", 1: "OPEN", 2: "CLOSING", 3: "CLOSED" };
 
-	const addToast = (toast: string) => {
+	const addToast = (error: Error) => {
 		const id = Date.now();
-		setGameStore("toasts", toasts => [...toasts, { id, message: toast }].slice(-3));
+		setGameStore("toasts", toasts => [...toasts, { id, error }].slice(-3));
 	}
 
 	const connectWebsocket = () => {
@@ -51,6 +50,7 @@ const createWebsocket = (): WebsocketState => {
 				console.log(e);
 				return;
 			}
+			console.log(data);
 
 			switch (data.status) {
 				case "welcome":
@@ -81,7 +81,7 @@ const createWebsocket = (): WebsocketState => {
 					});
 					break;
 				case "error":
-					addToast(data.error.message);
+					addToast(data.error);
 					break;
 				case "newGame":
 				case "exited":
@@ -104,7 +104,8 @@ const createWebsocket = (): WebsocketState => {
 			const attempts = retries();
 			if (attempts >= MAX_ATTEMPTS) {
 				setReadyState(readyMap[ws()?.readyState ?? 3]);
-				addToast(`Unable to connect to server`);
+				const err = { type: "joinError", message: "Unable to connect to server" } as Error
+				addToast(err);
 				return;
 			}
 			setReadyState("RECONNECTING");
@@ -118,7 +119,8 @@ const createWebsocket = (): WebsocketState => {
 	const sendMessage: SendMessage = (message: ClientMessage) => {
 		const currentWs = ws();
 		if (!currentWs || currentWs.readyState != WebSocket.OPEN) {
-			addToast("Not connected to server");
+			const err = { type: "joinError", message: "Not connected to server" } as Error
+			addToast(err);
 			return;
 		}
 		try {
@@ -134,9 +136,6 @@ const createWebsocket = (): WebsocketState => {
 	onCleanup(() => {
 		if (retryTimeout != null) {
 			clearTimeout(retryTimeout);
-		}
-		if (messageTimeout != null) {
-			clearTimeout(messageTimeout)
 		}
 		manualClose = true;
 		const currentWs = ws();
