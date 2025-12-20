@@ -5,7 +5,7 @@ use governor::{Quota, RateLimiter};
 use nonzero_ext::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time::{interval_at, Instant, Duration}};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
@@ -22,6 +22,7 @@ enum ClientMessage {
 
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
+
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
     let mut session_game_id: Option<String> = None;
     let mut session_player_id: Option<String> = None;
@@ -31,8 +32,22 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
     let quota = Quota::per_second(nonzero!(1u32)).allow_burst(nonzero!(6u32));
     let limit = RateLimiter::direct(quota);
 
+    let interval = Duration::from_secs(30);
+    let start = Instant::now() + interval;
+    let mut ping_interval = interval_at(start, interval);
+    let mut missed_pings = 0;
+
     loop {
         tokio::select! {
+            _ = ping_interval.tick() => {
+                if missed_pings >= 3 {break}
+
+                if let Err(err) = tw.send(Message::Ping("".into())).await {
+                    error!("Unable to send message to client {err}");
+                }
+                missed_pings += 1;
+                
+            }
             Some(msg) = player_rx.recv() => {
                 if let ServerMessage::Created {game_id, ..} = &msg {
                     session_game_id = Some(game_id.clone());
@@ -47,6 +62,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
             }
 
             Some(Ok(msg)) = rw.next() => {
+                missed_pings = 0;
                 match msg {
                     Message::Text(text) => {
                         if limit.check().is_err() {
