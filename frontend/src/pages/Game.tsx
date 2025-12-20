@@ -32,7 +32,7 @@ const Game = () => {
 	});
 
 	return (
-		<main class="relative bg-background-dark h-screen w-full text-center overflow-hidden">
+		<main class="relative bg-background-dark h-dvh w-full text-center overflow-hidden">
 			<Toast />
 			<NavBar />
 			<Show when={gameStore.gameStatus != "waiting" && gameStore.players.length == 2} fallback={

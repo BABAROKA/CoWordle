@@ -22,15 +22,19 @@ const JoinData = () => {
 
 	return (
 		<div class="w-full h-screen flex justify-center items-center bg-background-dark">
-			<div class="bg-background shadow-s p-5 rounded-xl text-text space-y-2">
-				<div class="space-x-2 flex items-center">
+			<div class="bg-background shadow-s p-3 sm:p-5 rounded-xl text-text space-y-2">
+				<div class="flex items-center justify-center w-full gap-2">
 					<p>Game ID:</p>
-					<p class="bg-background-light grow py-2 px-4 rounded-md">{gameStore.gameId}</p>
-					<button type="button" onClick={disconnect} class="bg-background-light py-2 w-16 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors duration-200">Exit</button>
+					<p class="bg-background-light grow py-2 text-sm sm:text-base rounded-md">{gameStore.gameId}</p>
+					<button type="button" onClick={disconnect} class="bg-background-light hidden sm:block py-2 w-16 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors duration-200">Exit</button>
 				</div>
 				<div class="flex gap-2">
-					<p class="bg-background-light py-2 px-4 rounded-md">{clipboardCopy}</p>
-					<button type="button" onClick={() => navigator.clipboard.writeText(clipboardCopy)} class="bg-background-light w-16 py-2 rounded-md hover:bg-green-800 cursor-pointer transition-colors duration-200">Copy</button>
+					<p class="bg-background-light py-2 px-4 rounded-md text-sm sm:text-base text-nowrap">{clipboardCopy}</p>
+					<button type="button" onClick={() => navigator.clipboard.writeText(clipboardCopy)} class="hidden sm:block bg-background-light w-16 py-2 rounded-md hover:bg-green-800 cursor-pointer transition-colors duration-200">Copy</button>
+				</div>
+				<div class="flex gap-2">
+					<button type="button" onClick={disconnect} class="bg-background-light block sm:hidden py-2 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors duration-200 w-full">Exit</button>
+					<button type="button" onClick={() => navigator.clipboard.writeText(clipboardCopy)} class="block sm:hidden bg-background-light py-2 rounded-md hover:bg-green-800 cursor-pointer transition-colors duration-200 w-full">Copy</button>
 				</div>
 			</div>
 		</div>

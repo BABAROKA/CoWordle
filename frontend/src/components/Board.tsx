@@ -1,7 +1,7 @@
 import "../main.css";
 import { For, onCleanup, createMemo, createEffect, type ParentComponent, onMount } from "solid-js";
 import { gameStore } from "../store/gameStore";
-import type { Guess, GameColor } from "../types";
+import type { Guess, KeyColor } from "../types";
 import { useGuess } from "../context/guessContext";
 
 const Board = () => {
@@ -59,7 +59,7 @@ const Board = () => {
 	})
 
 	return (
-		<div class="grid grid-rows-6 gap-2 text-text">
+		<div class="grid grid-rows-6 gap-1 sm:gap-2 text-text w-[min(350px,85vw)]">
 			<For each={guessRows()}>
 				{(guess, index) => {
 					const shouldFlip = index() == gameStore.guesses.length - 1;
@@ -105,7 +105,7 @@ const Board = () => {
 
 const BoardRow: ParentComponent<{ flip: boolean }> = (props) => {
 	return (
-		<div class="grid grid-cols-5 gap-2"
+		<div class="grid grid-cols-5 gap-1 sm:gap-2 w-full"
 			classList={{
 				"wordle-flip": props.flip,
 			}}
@@ -117,7 +117,7 @@ const BoardRow: ParentComponent<{ flip: boolean }> = (props) => {
 
 interface TileProps {
 	letter: string,
-	state: GameColor | "default",
+	state: KeyColor | "default",
 	index: number,
 	flip: boolean,
 	pop: boolean,
@@ -125,7 +125,7 @@ interface TileProps {
 
 const BoardTile = (props: TileProps) => {
 
-	const color: Record<GameColor | "default", { tailwind: string, value: string }> = {
+	const color: Record<KeyColor | "default", { tailwind: string, value: string }> = {
 		green: { tailwind: "bg-green-800 border-green-800", value: "#016630" },
 		yellow: { tailwind: "bg-yellow-600 border-yellow-600", value: "#d08700" },
 		gray: { tailwind: "bg-dark-gray border-dark-gray", value: "#3a3a3a" },
@@ -141,7 +141,7 @@ const BoardTile = (props: TileProps) => {
 			style={{ "--i": props.index, "--tileColor": data.value }}
 		>
 			<div
-				class="size-16 border-2 flex justify-center items-center text-3xl font-bold rounded-sm"
+				class="aspect-square border-2 flex justify-center items-center text-3xl font-bold rounded-sm"
 				classList={{
 					"border-light-gray": props.flip,
 					[data.tailwind]: !props.flip,

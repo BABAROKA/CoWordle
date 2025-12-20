@@ -49,7 +49,7 @@ const Home = () => {
 	}
 
 	return (
-		<main class="relative overflow-hidden bg-background-dark w-full h-screen flex flex-col gap-5 justify-center items-center">
+		<main class="relative overflow-hidden bg-background-dark w-full h-dvh flex flex-col gap-5 justify-center items-center">
 			<Toast />
 			<p class="text-4xl font-extrabold text-text" style={{ "view-transition-name": "title" }}>CoWordle</p>
 			<div class="p-5 bg-background rounded-xl text-center shadow-s text-text font-bold space-y-2">

@@ -11,7 +11,7 @@ const qwertyKeyboard = [
 
 const Keyboard = () => {
 	return (
-		<div class="place-items-center space-y-1.5 text-text">
+		<div class="place-items-center space-y-1.5 text-text transform scale-[min(1,95vw/460px)] relative">
 			<For each={qwertyKeyboard}>
 				{(row) =>
 					<KeyboardRow>
@@ -27,7 +27,7 @@ const Keyboard = () => {
 
 const KeyboardRow: ParentComponent = (props) => {
 	return (
-		<div class="flex space-x-1.5">
+		<div class="flex space-x-1.5 w-full justify-center">
 			{props.children}
 		</div>
 	)
@@ -43,9 +43,7 @@ const KeyboardTile = (props: { key: string }) => {
 		() => actions.addLetter(props.key) :
 		props.key == "⌫" ?
 			actions.removeLetter :
-			() => {
-				actions.sendGuess;
-			}
+			actions.sendGuess;
 
 	const animationColor = () => {
 		const colors: { [key: string]: string } = {
@@ -61,11 +59,11 @@ const KeyboardTile = (props: { key: string }) => {
 			type="button"
 			onClick={keyFunction}
 			classList={{
-				"w-18": bigKey,
+				"w-16": bigKey,
 				"w-10": !bigKey,
 				[animationColor()]: true,
 			}}
-			class="cursor-pointer h-12 flex justify-center items-center text-xl font-extrabold rounded-sm transition-colors delay-[1.4s]"
+			class="cursor-pointer h-14 flex justify-center items-center text-xl font-extrabold rounded-sm transition-colors delay-[1.4s]"
 			disabled={gameStore.gameStatus != "inProgress"}
 		>
 			{props.key}
