@@ -25,7 +25,7 @@ const JoinData = () => {
 			<div class="bg-background shadow-s p-3 sm:p-5 rounded-xl text-text space-y-2">
 				<div class="flex items-center justify-center w-full gap-2">
 					<p>Game ID:</p>
-					<p class="bg-background-light grow py-2 text-sm sm:text-base rounded-md">{gameStore.gameId}</p>
+					<p class="bg-background-light grow py-2 rounded-md">{gameStore.gameId}</p>
 					<button type="button" onClick={disconnect} class="bg-background-light hidden sm:block py-2 w-16 rounded-md hover:bg-yellow-600 cursor-pointer transition-colors duration-200">Exit</button>
 				</div>
 				<div class="flex gap-2">
