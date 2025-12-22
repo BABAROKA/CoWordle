@@ -1,6 +1,6 @@
 use crate::dict;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 use tokio::sync::mpsc::{self, Receiver};
 use tracing::{error, instrument, warn};
 
@@ -139,6 +139,7 @@ pub enum GameCommand {
         game_id: GameId,
         player_id: PlayerId,
     },
+    Stop,
 }
 
 impl GameCommand {
@@ -486,7 +487,9 @@ impl GameCoordinator {
         }
         if let Some(reply_sender) = command.get_reply_sender() {
             let error_message = ServerMessage::Error {
-                error : GameError::JoinError { message: "Game doesnt exist".to_string() }
+                error: GameError::JoinError {
+                    message: "Game doesnt exist".to_string(),
+                },
             };
             if let Err(err) = reply_sender.send(error_message).await {
                 error!("{err}");

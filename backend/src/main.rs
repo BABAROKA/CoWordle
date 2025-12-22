@@ -5,7 +5,7 @@ mod websocket;
 use axum::{
     self, Router,
     extract::{FromRequestParts, State, WebSocketUpgrade},
-    http::{StatusCode, header::{FORWARDED, ORIGIN}, request::Parts},
+    http::{StatusCode, header::ORIGIN, request::Parts},
     response::IntoResponse,
     routing::get,
 };
@@ -44,10 +44,6 @@ impl FromRequestParts<AppState> for ValidOrigin {
                     return Ok(ValidOrigin);
                 }
             }
-        }
-        if let Some(forwarded_header) = parts.headers.get(FORWARDED) {
-            let Ok(forwarded) = forwarded_header.to_str() else {return Err(InvalidOrigin)};
-            info!(forwarded);
         }
         Err(InvalidOrigin)
     }
@@ -114,7 +110,7 @@ async fn main() {
 
     let path = format!("0.0.0.0:{}", server_port);
     let listener = TcpListener::bind(path).await.unwrap();
-    tracing::info!("Listening to: {}/ws", listener.local_addr().unwrap());
+    tracing::info!("Listening to: {}", listener.local_addr().unwrap());
     axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown())
         .await

@@ -133,18 +133,25 @@ const createWebsocket = (): WebsocketState => {
 		}
 	}
 
-	onMount(() => connectWebsocket())
-
-	onCleanup(() => {
+	const closeWebscoket = () => {
 		if (retryTimeout != null) {
 			clearTimeout(retryTimeout);
 		}
 		manualClose = true;
 		const currentWs = ws();
-		if (currentWs && (currentWs.readyState == WebSocket.OPEN || currentWs.readyState == WebSocket.CONNECTING)) {
+		if (currentWs) {
 			currentWs.close();
 			setWs(null);
+			setReadyState("CLOSED");
 		}
+	}
+
+	onMount(() => {
+		connectWebsocket();
+
+		onCleanup(() => {
+			closeWebscoket();
+		})
 	})
 
 	return { readyState, sendMessage };
