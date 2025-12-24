@@ -17,7 +17,7 @@ use uuid::Uuid;
 enum ClientMessage {
     Connect {
         game_id: Option<GameId>,
-        player_id: Option<PlayerId>,
+        old_player_id: Option<PlayerId>,
     },
     JoinGame {
         game_id: GameId,
@@ -49,7 +49,10 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
     loop {
         tokio::select! {
             _ = ping_interval.tick() => {
-                if missed_pings >= 3 {break}
+                if missed_pings >= 3 {
+                    info!("Disconnectiong dead player");
+                    break;
+                }
 
                 if let Err(err) = tw.send(Message::Ping("".into())).await {
                     error!("Unable to send message to client {err:?}");
@@ -90,11 +93,8 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                         }
                         let Ok(request) = serde_json::from_str::<ClientMessage>(&text.to_string()) else {continue;};
 
-                        if let ClientMessage::Connect {game_id, player_id} = &request {
-                            let new_player_id = match player_id {
-                                Some(id) => id.clone(),
-                                None => Uuid::new_v4().to_string(),
-                            };
+                        if let ClientMessage::Connect {game_id, old_player_id} = &request {
+                            let new_player_id = Uuid::new_v4().to_string();
 
                             session_player_id = Some(new_player_id.clone());
                             session_game_id = game_id.clone();
@@ -111,7 +111,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                             }
 
                             let Some(id) = game_id else {continue};
-                            if let Err(err) = tx.send(GameCommand::Join { game_id: id.clone(), player_id: new_player_id, reply_sender: player_tx.clone()}).await {
+                            if let Err(err) = tx.send(GameCommand::Join { game_id: id.clone(), player_id: new_player_id, old_player_id: old_player_id.clone(), reply_sender: player_tx.clone()}).await {
                                 error!("Unable to send message to game coordinator {err}");
                                 break;
                             }
@@ -125,7 +125,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                             },
                             (ClientMessage::JoinGame { game_id }, Some(pid), _) => {
                                 session_game_id = Some(game_id.clone());
-                                GameCommand::Join { game_id: game_id, player_id: pid, reply_sender: player_tx.clone()}
+                                GameCommand::Join { game_id: game_id, player_id: pid, old_player_id: None, reply_sender: player_tx.clone()}
                             },
                             (ClientMessage::NewGame, _, Some(gid)) => {
                                 GameCommand::New { game_id: gid, reply_sender: player_tx.clone()}

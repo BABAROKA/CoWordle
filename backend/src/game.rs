@@ -123,6 +123,7 @@ pub enum GameCommand {
     Join {
         game_id: GameId,
         player_id: PlayerId,
+        old_player_id: Option<PlayerId>,
         reply_sender: PlayerSender,
     },
     New {
@@ -264,9 +265,13 @@ impl Game {
             GameCommand::Join {
                 game_id,
                 player_id,
+                old_player_id,
                 reply_sender,
             } => {
-                if let Err(err) = self.handle_join(player_id, game_id, reply_sender.clone()).await {
+                if let Err(err) = self
+                    .handle_join(player_id, old_player_id, game_id, reply_sender.clone())
+                    .await
+                {
                     return Err(err);
                 }
             }
@@ -291,9 +296,16 @@ impl Game {
     async fn handle_join(
         &mut self,
         player_id: PlayerId,
+        old_player_id: Option<PlayerId>,
         game_id: GameId,
         sender: PlayerSender,
     ) -> Result<(), GameError> {
+        
+        if let Some(pid) = old_player_id {
+            self.player_senders.remove(&pid);
+            self.board_state.players.retain(|id| id != &pid);
+        }
+
         if self.player_senders.len() > 1 {
             return Err(GameError::JoinError {
                 message: "Already two players in this game".to_string(),
@@ -381,8 +393,11 @@ impl Game {
     }
 
     async fn handle_disconnect(&mut self, player_id: PlayerId) -> Result<(), GameError> {
-        self.player_senders.remove(&player_id);
+
         self.board_state.players.retain(|id| id != &player_id);
+        if let None = self.player_senders.remove(&player_id) {
+            return Ok(());
+        }
 
         if self.board_state.players.is_empty() {
             return Err(GameError::StopGame);

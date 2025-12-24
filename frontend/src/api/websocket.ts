@@ -34,12 +34,12 @@ const createWebsocket = (): WebsocketState => {
 		newWs.onopen = () => {
 			setRetries(0);
 			setReadyState(readyMap[ws()?.readyState ?? 3]);
-			const sessionPlayerId = sessionStorage.getItem("playerId");
+			const sessionPlayerId = sessionStorage.getItem("oldPlayerId");
 
 			const connectMessage: ClientMessage = {
 				action: "connect",
 				gameId: gameStore.gameId,
-				playerId: sessionPlayerId,
+				oldPlayerId: sessionPlayerId,
 			}
 			sendMessage(connectMessage);
 		};
@@ -56,7 +56,7 @@ const createWebsocket = (): WebsocketState => {
 			switch (data.status) {
 				case "welcome":
 					setGameStore({ playerId: data.playerId });
-					sessionStorage.setItem("playerId", data.playerId);
+					sessionStorage.setItem("oldPlayerId", data.playerId);
 					break;
 				case "created":
 					setGameStore({ gameId: data.gameId, gameStatus: data.gameStatus });
