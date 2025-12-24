@@ -1,20 +1,30 @@
-use crate::game::{GameCommand, GameId, ServerMessage};
+use crate::game::{GameCommand, GameId, PlayerId, ServerMessage};
 use axum::extract::ws::{Message, WebSocket};
 use futures::{sink::SinkExt, stream::StreamExt};
 use governor::{Quota, RateLimiter};
 use nonzero_ext::*;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use tokio::{sync::mpsc, time::{interval_at, Instant, Duration}};
+use tokio::{
+    sync::mpsc,
+    time::{Duration, Instant, interval_at},
+};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 enum ClientMessage {
-    Connect { game_id: Option<GameId> },
-    JoinGame { game_id: GameId },
-    GuessWord { word: String },
+    Connect {
+        game_id: Option<GameId>,
+        player_id: Option<PlayerId>,
+    },
+    JoinGame {
+        game_id: GameId,
+    },
+    GuessWord {
+        word: String,
+    },
     CreateGame,
     NewGame,
     DisconnectPlayer,
@@ -22,7 +32,6 @@ enum ClientMessage {
 
 #[instrument(skip(socket, tx))]
 pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
-
     let (player_tx, mut player_rx) = mpsc::channel::<ServerMessage>(32);
     let mut session_game_id: Option<String> = None;
     let mut session_player_id: Option<String> = None;
@@ -43,10 +52,10 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                 if missed_pings >= 3 {break}
 
                 if let Err(err) = tw.send(Message::Ping("".into())).await {
-                    error!("Unable to send message to client {err}");
+                    error!("Unable to send message to client {err:?}");
                 }
                 missed_pings += 1;
-                
+
             }
             Some(msg) = player_rx.recv() => {
                 if let ServerMessage::Created {game_id, ..} = &msg {
@@ -57,7 +66,7 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                     continue;
                 };
                 if let Err(err) = tw.send(Message::Text(message.into())).await {
-                    error!("Unable to send message to client {err}");
+                    error!("Unable to send message to client {err:?}");
                 }
             }
 
@@ -81,8 +90,11 @@ pub async fn handle_socket(socket: WebSocket, tx: mpsc::Sender<GameCommand>) {
                         }
                         let Ok(request) = serde_json::from_str::<ClientMessage>(&text.to_string()) else {continue;};
 
-                        if let ClientMessage::Connect {game_id} = &request {
-                            let new_player_id = Uuid::new_v4().to_string();
+                        if let ClientMessage::Connect {game_id, player_id} = &request {
+                            let new_player_id = match player_id {
+                                Some(id) => id.clone(),
+                                None => Uuid::new_v4().to_string(),
+                            };
 
                             session_player_id = Some(new_player_id.clone());
                             session_game_id = game_id.clone();

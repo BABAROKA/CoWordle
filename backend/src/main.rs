@@ -38,6 +38,9 @@ impl FromRequestParts<AppState> for ValidOrigin {
     type Rejection = InvalidOrigin;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        if state.allowed_origins.is_empty() {
+            return Ok(ValidOrigin);
+        }
         if let Some(origin_header) = parts.headers.get(ORIGIN) {
             if let Ok(origin) = origin_header.to_str() {
                 if state.allowed_origins.contains(&origin.to_string()) {
@@ -64,7 +67,7 @@ async fn main() {
         Ok(s) => s,
         Err(_) => {
             info!("ALLOWED_ORIGINS not set, using empty list");
-            return;
+            "".to_string()
         }
     };
 

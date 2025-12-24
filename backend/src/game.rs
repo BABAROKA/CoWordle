@@ -1,8 +1,8 @@
 use crate::dict;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{error, instrument, warn};
+use tracing::{error, info, instrument, warn};
 
 pub type GameId = String;
 pub type PlayerId = String;
@@ -139,7 +139,6 @@ pub enum GameCommand {
         game_id: GameId,
         player_id: PlayerId,
     },
-    Stop,
 }
 
 impl GameCommand {

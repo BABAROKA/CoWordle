@@ -34,7 +34,6 @@ const Board = () => {
 
 	const handleKeyPress = (event: KeyboardEvent) => {
 		if (event.repeat) return;
-		if (gameStore.currentTurn != gameStore.playerId) return;
 		if (gameStore.players.length < 2) return;
 		if (gameStore.gameStatus != "inProgress") return;
 
@@ -145,6 +144,7 @@ const BoardTile = (props: TileProps) => {
 				classList={{
 					"border-light-gray": props.flip,
 					[data.tailwind]: !props.flip,
+					"text-light-gray": (gameStore.currentTurn != gameStore.playerId && props.state == "default"),
 				}}
 			>
 				{props.letter}

@@ -55,7 +55,7 @@ const Home = () => {
 			<div class="p-5 bg-background rounded-xl text-center shadow-s text-text font-bold space-y-2">
 				<button type="button" onClick={createGame} class="bg-background-light hover:bg-green-800 w-full rounded-md cursor-pointer p-2 transition-colors duration-200">Create Game</button>
 				<div class="w-full flex gap-2">
-					<input class="bg-background-light rounded-md uppercase outline-none text-center" onInput={(event) => setInputId(event.target.value)} type="text" />
+					<input class="bg-background-light rounded-md uppercase outline-none text-center" onInput={(event) => setInputId(event.target.value.toUpperCase())} type="text" />
 					<button class="bg-background-light hover:bg-yellow-600 cursor-pointer rounded-md p-2 transition-colors duration-200" onClick={() => joinGame(null)}>Join</button>
 				</div>
 			</div>
