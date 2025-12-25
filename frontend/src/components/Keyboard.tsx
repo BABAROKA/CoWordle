@@ -38,6 +38,7 @@ const KeyboardTile = (props: { key: string }) => {
 	const { actions } = useGuess();
 
 	const bigKey = props.key == "Enter" || props.key == "⌫";
+
 	const state = () => gameStore.keyboardStatus[props.key];
 	const keyFunction = !bigKey ?
 		() => actions.addLetter(props.key) :
@@ -61,7 +62,8 @@ const KeyboardTile = (props: { key: string }) => {
 			classList={{
 				"w-16": bigKey,
 				"w-10": !bigKey,
-				[animationColor()]: true,
+				"bg-dark-gray": props.key == "Enter" && gameStore.currentTurn != gameStore.playerId,
+				[animationColor()]: props.key != "Enter" || gameStore.currentTurn == gameStore.playerId,
 			}}
 			class="cursor-pointer h-14 flex justify-center items-center text-xl font-extrabold rounded-sm transition-colors delay-[1.4s]"
 			disabled={gameStore.gameStatus != "inProgress"}

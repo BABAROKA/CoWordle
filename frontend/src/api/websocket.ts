@@ -152,8 +152,21 @@ const createWebsocket = (): WebsocketState => {
 	onMount(() => {
 		connectWebsocket();
 
+		const checkConnection = () => {
+			if (document.visibilityState == "visible") {
+				const currentWs = ws();
+				if (currentWs) {
+					currentWs.send("ping");
+				} else {
+					connectWebsocket();
+				}
+			}
+		}
+		document.addEventListener("visibilitychange", checkConnection);
+
 		onCleanup(() => {
 			closeWebscoket();
+			document.removeEventListener("visibilitychange", checkConnection);
 		})
 	})
 

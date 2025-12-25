@@ -2,7 +2,7 @@ use crate::dict;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 
 pub type GameId = String;
 pub type PlayerId = String;
@@ -300,7 +300,6 @@ impl Game {
         game_id: GameId,
         sender: PlayerSender,
     ) -> Result<(), GameError> {
-        
         if let Some(pid) = old_player_id {
             self.player_senders.remove(&pid);
             self.board_state.players.retain(|id| id != &pid);
@@ -378,10 +377,11 @@ impl Game {
         } else if self.board_state.guesses.len() >= MAX_GUESSES {
             self.board_state.game_status = GameStatus::Lost;
             solution = Some(self.solution_word.clone());
+        } else {
+            self.board_state.next_turn();
         }
 
         Self::update_keyboard_status(self, &guess);
-        self.board_state.next_turn();
 
         let game_update = ServerMessage::GameUpdate {
             board_state: self.board_state.clone(),
@@ -393,7 +393,6 @@ impl Game {
     }
 
     async fn handle_disconnect(&mut self, player_id: PlayerId) -> Result<(), GameError> {
-
         self.board_state.players.retain(|id| id != &player_id);
         if let None = self.player_senders.remove(&player_id) {
             return Ok(());
