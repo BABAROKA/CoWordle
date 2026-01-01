@@ -143,7 +143,7 @@ pub enum GameCommand {
 }
 
 impl GameCommand {
-    fn get_game_id(&self) -> Option<GameId> {
+    fn get_game_id(&self) -> Option<String> {
         match &self {
             &Self::Join { game_id, .. }
             | &Self::Guess { game_id, .. }
@@ -212,7 +212,9 @@ impl Game {
 
     fn reset(&mut self) {
         self.solution_word = dict::random_solution();
-        self.board_state.next_turn();
+        if self.board_state.guesses.len() % 2 == 0 {
+            self.board_state.next_turn();
+        }
         let new_board_state = BoardState {
             guesses: Vec::new(),
             current_turn: self.board_state.current_turn.clone(),
@@ -223,10 +225,10 @@ impl Game {
         self.board_state = new_board_state;
     }
 
-    fn check_guess(&self, guess: String) -> GuessResult {
+    fn check_guess(&self, guess: &str) -> GuessResult {
         let mut solution_vec: Vec<char> = self.solution_word.to_uppercase().chars().collect();
         let mut guess_vec: Vec<char> = guess.to_uppercase().chars().collect();
-        let mut guess_result = GuessResult::new(guess);
+        let mut guess_result = GuessResult::new(guess.to_string());
         let word_len = solution_vec.len();
 
         for i in 0..word_len {
@@ -256,7 +258,7 @@ impl Game {
         }
     }
 
-    fn has_player(&self, player_id: &PlayerId) -> bool {
+    fn has_player(&self, player_id: &str) -> bool {
         self.board_state.players.iter().any(|x| x == player_id)
     }
 
@@ -279,12 +281,12 @@ impl Game {
                 self.handle_new().await;
             }
             GameCommand::Guess { player_id, word, .. } => {
-                if let Err(err) = self.handle_guess(player_id, word).await {
+                if let Err(err) = self.handle_guess(&player_id, word).await {
                     return Err(err);
                 }
             }
             GameCommand::Disconnect { player_id, .. } => {
-                if let Err(err) = self.handle_disconnect(player_id).await {
+                if let Err(err) = self.handle_disconnect(&player_id).await {
                     return Err(err);
                 }
             }
@@ -340,7 +342,7 @@ impl Game {
         Self::broadcast_message(self, new_message).await;
     }
 
-    async fn handle_guess(&mut self, player_id: PlayerId, word: String) -> Result<(), GameError> {
+    async fn handle_guess(&mut self, player_id: &str, word: String) -> Result<(), GameError> {
         if self.board_state.players.is_empty() {
             return Err(GameError::StopGame);
         }
@@ -367,9 +369,8 @@ impl Game {
                 message: "Word should be 5 letters long".to_string(),
             });
         }
-        let guess = self.check_guess(word);
+        let guess = self.check_guess(&word);
         self.board_state.guesses.push(guess.clone());
-
         let win = guess.status.iter().all(|x| *x == GameColor::Green);
         if win {
             self.board_state.game_status = GameStatus::Won;
@@ -377,9 +378,9 @@ impl Game {
         } else if self.board_state.guesses.len() >= MAX_GUESSES {
             self.board_state.game_status = GameStatus::Lost;
             solution = Some(self.solution_word.clone());
-        } else {
-            self.board_state.next_turn();
         }
+
+        self.board_state.next_turn();
 
         Self::update_keyboard_status(self, &guess);
 
@@ -392,9 +393,9 @@ impl Game {
         Ok(())
     }
 
-    async fn handle_disconnect(&mut self, player_id: PlayerId) -> Result<(), GameError> {
-        self.board_state.players.retain(|id| id != &player_id);
-        if let None = self.player_senders.remove(&player_id) {
+    async fn handle_disconnect(&mut self, player_id: &str) -> Result<(), GameError> {
+        self.board_state.players.retain(|id| id != player_id);
+        if let None = self.player_senders.remove(player_id) {
             return Ok(());
         }
 
@@ -434,7 +435,7 @@ impl Game {
     }
 
     #[instrument(skip(game))]
-    async fn broadcast_message(game: &mut Game, message: ServerMessage) {
+    async fn broadcast_message(game: &Game, message: ServerMessage) {
         for (_, sender) in &game.player_senders {
             if let Err(err) = sender.send(message.clone()).await {
                 error!("{err}");
@@ -472,7 +473,7 @@ impl GameCoordinator {
                     player_id,
                     reply_sender,
                 } => {
-                    self.handle_creating_game(player_id.clone(), reply_sender.clone()).await;
+                    self.handle_creating_game(&player_id, reply_sender.clone()).await;
                     continue;
                 }
                 GameCommand::Join { player_id, game_id, .. } => {
@@ -484,17 +485,17 @@ impl GameCoordinator {
                 }
                 _ => {}
             }
-            if let Some(game_id) = cmd.get_game_id() {
-                self.relay_command(game_id, cmd).await;
-            }
+                self.relay_command(cmd).await;
         }
     }
 
-    async fn relay_command(&mut self, game_id: GameId, command: GameCommand) {
-        if let Some(sender) = self.games.get(&game_id) {
+    async fn relay_command(&mut self, command: GameCommand) {
+        let Some(gid) = command.get_game_id() else {return};
+
+        if let Some(sender) = self.games.get(&gid) {
             if let Err(err) = sender.send(command).await {
                 warn!("Game actor is dead: {err}");
-                self.games.remove(&game_id);
+                self.games.remove(&gid);
             }
             return;
         }
@@ -510,13 +511,13 @@ impl GameCoordinator {
         }
     }
 
-    async fn handle_creating_game(&mut self, player_id: PlayerId, player_sender: PlayerSender) {
-        let (sender, mut game) = Game::new(player_id.clone(), player_sender.clone());
+    async fn handle_creating_game(&mut self, player_id: &str, player_sender: PlayerSender) {
+        let (sender, mut game) = Game::new(player_id.to_string(), player_sender.clone());
 
-        self.disconnect_from_game(&player_id).await;
+        self.disconnect_from_game(player_id).await;
         let game_id = dict::random_game_id();
 
-        self.add_game(game_id.clone(), player_id.clone(), sender);
+        self.add_game(game_id.clone(), player_id.to_string(), sender);
 
         tokio::spawn(async move {
             game.run().await;
@@ -532,11 +533,11 @@ impl GameCoordinator {
         }
     }
 
-    async fn disconnect_from_game(&mut self, player_id: &PlayerId) {
+    async fn disconnect_from_game(&mut self, player_id: &str) {
         if let Some(game_id) = self.player_games.remove(player_id) {
             if let Some(sender) = self.games.get(&game_id) {
                 let disconnect_message = GameCommand::Disconnect {
-                    player_id: player_id.clone(),
+                    player_id: player_id.to_string(),
                     game_id: game_id.clone(),
                 };
                 if let Err(_) = sender.send(disconnect_message).await {
